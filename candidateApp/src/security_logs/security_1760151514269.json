@@ -1,0 +1,11 @@
+{
+  "type": "EXAM_STARTED",
+  "details": "Exam started remotely by invigilator",
+  "severity": "INFO",
+  "examData": {
+    "questionCount": 5,
+    "duration": "50"
+  },
+  "timestamp": "2025-10-11T02:58:34.269Z",
+  "sessionId": 1
+}

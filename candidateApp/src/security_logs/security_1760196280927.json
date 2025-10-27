@@ -1,0 +1,7 @@
+{
+  "type": "WEBSOCKET_CONNECTED",
+  "details": "Successfully connected to exam server via WebSocket",
+  "severity": "INFO",
+  "timestamp": "2025-10-11T15:24:40.927Z",
+  "sessionId": 1
+}

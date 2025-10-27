@@ -1,0 +1,22 @@
+ICON PLACEHOLDER
+
+To complete the build process, you need to add an icon.ico file here.
+
+You can:
+1. Create a 256x256 pixel icon in .ico format
+2. Name it "icon.ico"
+3. Place it in this assets folder
+
+For now, the build will work without an icon, but Windows will use a default icon.
+
+Recommended icon themes for Army Exam:
+- Military badge or emblem
+- Exam/education symbol
+- Computer/technology icon
+- Indian Army insignia (if permitted)
+
+Icon requirements:
+- Format: .ico
+- Size: 256x256 pixels (minimum)
+- Multiple sizes embedded (16x16, 32x32, 48x48, 256x256)
+- Professional appearance suitable for army use

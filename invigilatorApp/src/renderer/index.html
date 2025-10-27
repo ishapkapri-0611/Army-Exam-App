@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Army Exam Invigilator</title>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary-color: #1a365d;
+            --secondary-color: #d4af37;
+            --success-color: #38a169;
+            --danger-color: #e53e3e;
+            --warning-color: #d69e2e;
+            --info-color: #3182ce;
+            --dark-color: #2d3748;
+            --light-color: #f7fafc;
+            --text-color: #2d3748;
+            --text-light: #718096;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f1f3d 0%, #1a365d 100%);
+            color: white;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Header Styles */
+        .header {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%);
+            padding: 30px 40px;
+            margin-bottom: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            backdrop-filter: blur(10px);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #d4af37, #b8941f);
+        }
+        
+        .logo {
+            font-size: 2.8em;
+            font-weight: 800;
+            color: #d4af37;
+            text-shadow: 0 2px 10px rgba(212, 175, 55, 0.3);
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            color: #a0aec0;
+            font-weight: 300;
+            opacity: 0.9;
+        }
+        
+        .header-badge {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+        
+        /* Main Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        /* Card Styles */
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(212, 175, 55, 0.3);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+        
+        .card-title {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #d4af37;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .card-title i {
+            font-size: 1.3em;
+        }
+        
+        .card-badge {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        /* Status Indicators */
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border-left: 4px solid;
+        }
+        
+        .status-online { border-left-color: #38a169; }
+        .status-offline { border-left-color: #e53e3e; }
+        .status-connecting { border-left-color: #d69e2e; }
+        
+        .status-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .status-online .status-indicator { 
+            background: #38a169;
+            box-shadow: 0 0 15px #38a169;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-offline .status-indicator { 
+            background: #e53e3e;
+            box-shadow: 0 0 15px #e53e3e;
+        }
+        
+        .status-connecting .status-indicator { 
+            background: #d69e2e;
+            box-shadow: 0 0 15px #d69e2e;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            margin: 25px 0;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .progress-label {
+            font-weight: 600;
+            color: #a0aec0;
+        }
+        
+        .progress-value {
+            font-weight: 700;
+            color: #d4af37;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #38a169, #48bb78);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            width: 0%;
+            position: relative;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Button Styles */
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #d4af37, #b8941f);
+            color: #1a202c;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e53e3e, #c53030);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #38a169, #2f855a);
+            color: white;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .btn:disabled::before {
+            display: none;
+        }
+        
+        /* Monitoring Dashboard */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(212, 175, 55, 0.3);
+        }
+        
+        .metric-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+        
+        .metric-value {
+            font-size: 2.2em;
+            font-weight: 800;
+            margin: 10px 0;
+            color: #d4af37;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        
+        /* File Upload */
+        .upload-section {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            transition: border-color 0.3s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+        
+        .upload-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .upload-icon {
+            font-size: 1.5em;
+            color: #d4af37;
+        }
+        
+        .upload-info {
+            color: #a0aec0;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .upload-status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .status-success {
+            background: rgba(56, 161, 105, 0.2);
+            color: #38a169;
+            border-left: 4px solid #38a169;
+        }
+        
+        .status-error {
+            background: rgba(229, 62, 62, 0.2);
+            color: #e53e3e;
+            border-left: 4px solid #e53e3e;
+        }
+        
+        .status-pending {
+            background: rgba(214, 158, 46, 0.2);
+            color: #d69e2e;
+            border-left: 4px solid #d69e2e;
+        }
+        
+        /* Candidates Table */
+        .candidates-table-container {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .table-header {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-title {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #d4af37;
+        }
+        
+        .candidates-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .candidates-table th {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: #d4af37;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .candidates-table td {
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .candidates-table tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .progress-cell {
+            min-width: 120px;
+        }
+        
+        .progress-mini {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        
+        .progress-mini-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #38a169, #48bb78);
+            border-radius: 3px;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: rgba(56, 161, 105, 0.2);
+            color: #38a169;
+        }
+        
+        .status-inactive {
+            background: rgba(229, 62, 62, 0.2);
+            color: #e53e3e;
+        }
+        
+        .status-completed {
+            background: rgba(66, 153, 225, 0.2);
+            color: #4299e1;
+        }
+        
+        /* Log Container */
+        .log-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .log-time {
+            color: #a0aec0;
+            font-size: 0.8em;
+            min-width: 80px;
+        }
+        
+        .log-message {
+            flex: 1;
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .action-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .action-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(212, 175, 55, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .action-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #d4af37;
+        }
+        
+        .action-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #d4af37;
+        }
+        
+        .action-desc {
+            font-size: 0.9em;
+            color: #a0aec0;
+            line-height: 1.4;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                grid-row: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .logo {
+                font-size: 2.2em;
+            }
+            
+            .btn-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .card {
+                padding: 20px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-badge {
+                position: static;
+                margin-top: 10px;
+                display: inline-block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">🇮🇳 Army Exam Invigilator</div>
+            <div class="subtitle">Secure Military Examination Management System</div>
+            <div class="header-badge">Version 2.0 • Production Ready</div>
+        </div>
+        
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Server Control Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🛡️ Server Control Center</div>
+                        <div class="card-badge" id="serverBadge">OFFLINE</div>
+                    </div>
+                    
+                    <div class="status-container status-offline" id="statusContainer">
+                        <div class="status-indicator"></div>
+                    <div id="serverStatusText">Server Status: Offline</div>
+                </div>
+                <button class="btn btn-primary" onclick="startExam()" id="startExamBtn" style="margin-top: 15px;">
+                    <span>🚀</span>
+                    <span>Start Exam</span>
+                </button>
+                
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <span class="progress-label">System Status</span>
+                            <span class="progress-value" id="progressValue">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="serverProgress"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="startServer()" id="startBtn">
+                            <span>🚀</span>
+                            <span>Start Exam Server</span>
+                        </button>
+                        <button class="btn btn-danger" onclick="stopServer()" id="stopBtn" disabled>
+                            <span>⏹️</span>
+                            <span>Stop Server</span>
+                        </button>
+                        <button class="btn btn-primary" onclick="exportResults()" id="exportTableBtn">
+                            <span>📊</span>
+                            <span>Export Results</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="testExport()" id="testExportBtn" style="margin-left: 10px;">
+                            <span>🧪</span>
+                            <span>Test Export</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- File Upload Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📁 Exam Configuration</div>
+                        <div class="card-badge" id="uploadBadge">READY</div>
+                    </div>
+                    
+                    <div class="upload-section">
+                        <div class="upload-header">
+                            <div class="upload-icon">👥</div>
+                            <div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">Candidates List</div>
+                                <div class="upload-info">Upload DOCX file with format: JC543031A, Name, Rank, Unit</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="uploadUsersFile()" id="usersBtn">
+                            <span>📋</span>
+                            <span>Select Users File</span>
+                        </button>
+                        <div class="upload-status status-pending" id="usersStatus">
+                            No users file uploaded
+                        </div>
+                    </div>
+                    
+                    <div class="upload-section">
+                        <div class="upload-header">
+                            <div class="upload-icon">❓</div>
+                            <div>
+                                <div style="font-weight: 600; margin-bottom: 4px;">Exam Questions</div>
+                                <div class="upload-info">Upload DOCX with MCQ/TrueFalse questions and marks [2 marks]</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="uploadQuestionsFile()" id="questionsBtn">
+                            <span>📝</span>
+                            <span>Select Questions File</span>
+                        </button>
+                        <div class="upload-status status-pending" id="questionsStatus">
+                            No questions file uploaded
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <label style="font-weight: 600; display: block; margin-bottom: 10px;">⏱️ Exam Duration</label>
+                        <input type="number" id="examDuration" value="60" min="5" max="180" 
+                               style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); 
+                                      background: rgba(255,255,255,0.1); color: white; width: 120px;">
+                        <span style="margin-left: 10px; color: #a0aec0;">minutes</span>
+                    </div>
+                </div>
+                
+                <!-- Live Monitoring Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">👥 Live Candidate Monitoring</div>
+                        <div class="card-badge" id="monitoringBadge">0 CANDIDATES</div>
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon">👤</div>
+                            <div class="metric-value" id="totalCandidates">0</div>
+                            <div class="metric-label">Total Connected</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-icon">🟢</div>
+                            <div class="metric-value" id="activeCandidates">0</div>
+                            <div class="metric-label">Active Now</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-icon">📊</div>
+                            <div class="metric-value" id="averageProgress">0%</div>
+                            <div class="metric-label">Avg Progress</div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-icon">🚨</div>
+                            <div class="metric-value" id="securityEvents">0</div>
+                            <div class="metric-label">Security Alerts</div>
+                        </div>
+                    </div>
+                    
+                    <div class="candidates-table-container">
+                        <div class="table-header">
+                            <div class="table-title">Connected Candidates</div>
+                            <div style="color: #a0aec0; font-size: 0.9em;" id="lastUpdate">Last update: --:--:--</div>
+                        </div>
+                        <table class="candidates-table">
+                            <thead>
+                                <tr>
+                                    <th>Army Number</th>
+                                    <th>Name & Rank</th>
+                                    <th>Progress</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="candidatesTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-center" style="padding: 40px; color: #a0aec0;">
+                                        <div style="font-size: 1.2em; margin-bottom: 10px;">👥</div>
+                                        <div>No candidates connected</div>
+                                        <div style="font-size: 0.9em; margin-top: 5px;">Start server to begin monitoring</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Quick Actions Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">⚡ Quick Actions</div>
+                    </div>
+                    
+                    <div class="quick-actions">
+                        <div class="action-card" onclick="broadcastMessage()">
+                            <div class="action-icon">📢</div>
+                            <div class="action-title">Broadcast Message</div>
+                            <div class="action-desc">Send announcement to all connected candidates</div>
+                        </div>
+                        
+                        <div class="action-card" onclick="forceSubmitAll()">
+                            <div class="action-icon">⏰</div>
+                            <div class="action-title">Force Submit All</div>
+                            <div class="action-desc">Immediately end exam for all candidates</div>
+                        </div>
+                        
+                        <div class="action-card" onclick="extendExamTime()">
+                            <div class="action-icon">➕</div>
+                            <div class="action-title">Extend Time</div>
+                            <div class="action-desc">Add extra time to the ongoing exam</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Status Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🖥️ System Status</div>
+                    </div>
+                    
+                    <div style="display: grid; gap: 15px;">
+                        <div style="display: flex; justify-content: between; align-items: center;">
+                            <span style="color: #a0aec0;">CPU Usage</span>
+                            <span style="font-weight: 600; color: #d4af37;" id="cpuUsage">--%</span>
+                        </div>
+                        <div style="display: flex; justify-content: between; align-items: center;">
+                            <span style="color: #a0aec0;">Memory Usage</span>
+                            <span style="font-weight: 600; color: #d4af37;" id="memoryUsage">-- MB</span>
+                        </div>
+                        <div style="display: flex; justify-content: between; align-items: center;">
+                            <span style="color: #a0aec0;">Network Status</span>
+                            <span style="font-weight: 600; color: #38a169;" id="networkStatus">Stable</span>
+                        </div>
+                        <div style="display: flex; justify-content: between; align-items: center;">
+                            <span style="color: #a0aec0;">Uptime</span>
+                            <span style="font-weight: 600; color: #d4af37;" id="systemUptime">00:00:00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Log Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📋 System Log</div>
+                        <div class="card-badge" id="logCount">0 ENTRIES</div>
+                    </div>
+                    
+                    <div class="log-container" id="logContainer">
+                        <div class="log-entry">
+                            <span class="log-time" id="currentTime">00:00:00</span>
+                            <span class="log-message">System initialized successfully</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button class="btn btn-secondary" style="flex: 1; padding: 8px;" onclick="clearLogs()">
+                            🗑️ Clear Logs
+                        </button>
+                        <button class="btn btn-secondary" style="flex: 1; padding: 8px;" onclick="exportLogs()">
+                            💾 Export Logs
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer with Copyright and About -->
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0, 0, 0, 0.8); padding: 10px 20px; border-top: 1px solid rgba(255, 255, 255, 0.1); z-index: 1000;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; color: #a0aec0;">
+            <div>
+                © 2025 Kapri Software Pvt Ltd. All rights reserved. | Army Examination System v2.0.0
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <button onclick="showAboutDialog()" style="background: none; border: none; color: #d4af37; cursor: pointer; text-decoration: underline;">About</button>
+                <button onclick="showSupportDialog()" style="background: none; border: none; color: #d4af37; cursor: pointer; text-decoration: underline;">Support</button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Enhanced UI Manager with real-time updates
+        class EnhancedInvigilatorUI {
+            constructor() {
+                this.isServerRunning = false;
+                this.connectedCandidates = new Map();
+                this.logCount = 0;
+                this.systemStartTime = Date.now();
+                this.init();
+            }
+            
+            init() {
+                this.updateCurrentTime();
+                this.setupRealTimeUpdates();
+                this.checkServerStatus();
+                this.updateSystemMetrics();
+                
+                setInterval(() => this.updateCurrentTime(), 1000);
+                setInterval(() => this.updateSystemMetrics(), 5000);
+                setInterval(() => this.updateLastUpdateTime(), 1000);
+                setInterval(() => this.checkServerStatus(), 10000); // Check server status every 10 seconds
+                
+                this.log('🎯 Enhanced UI initialized successfully', 'success');
+            }
+            
+            async checkServerStatus() {
+                try {
+                    const status = await window.electronAPI.getServerStatus();
+                    console.log('Server status received:', status);
+                    this.updateServerStatus(status);
+                } catch (error) {
+                    console.error('Error checking server status:', error);
+                    this.updateServerStatus({ isRunning: false, connectedCandidates: 0, port: null, uptime: 0 });
+                }
+            }
+            
+            updateServerStatus(status) {
+                const indicator = document.getElementById('statusContainer');
+                const statusText = document.getElementById('serverStatusText');
+                const progressBar = document.getElementById('serverProgress');
+                const progressValue = document.getElementById('progressValue');
+                const serverBadge = document.getElementById('serverBadge');
+                
+                this.isServerRunning = status.isRunning;
+                
+                if (status.isRunning) {
+                    indicator.className = 'status-container status-online';
+                    statusText.innerHTML = `Server Status: Online • Port ${status.port} • ${status.connectedCandidates} candidates`;
+                    progressBar.style.width = '100%';
+                    progressValue.textContent = '100%';
+                    serverBadge.textContent = 'ONLINE';
+                    serverBadge.style.background = 'rgba(56, 161, 105, 0.2)';
+                    serverBadge.style.color = '#38a169';
+                    
+                    this.updateButtonStates(true);
+                    this.log(`🟢 Server running on port ${status.port}`, 'success');
+                } else {
+                    indicator.className = 'status-container status-offline';
+                    statusText.textContent = 'Server Status: Offline';
+                    progressBar.style.width = '0%';
+                    progressValue.textContent = '0%';
+                    serverBadge.textContent = 'OFFLINE';
+                    serverBadge.style.background = 'rgba(229, 62, 62, 0.2)';
+                    serverBadge.style.color = '#e53e3e';
+                    
+                    this.updateButtonStates(false);
+                    this.clearCandidates();
+                }
+            }
+            
+            updateButtonStates(serverRunning) {
+                const startBtn = document.getElementById('startBtn');
+                const stopBtn = document.getElementById('stopBtn');
+                const exportTableBtn = document.getElementById('exportTableBtn');
+                
+                if (startBtn) startBtn.disabled = serverRunning;
+                if (stopBtn) stopBtn.disabled = !serverRunning;
+                if (exportTableBtn) exportTableBtn.disabled = false; // Always enable export buttons
+            }
+            
+            async startServer() {
+                try {
+                    this.log('🚀 Starting exam server...', 'info');
+                    
+                    document.getElementById('statusContainer').className = 'status-container status-connecting';
+                    document.getElementById('serverStatusText').textContent = 'Server Status: Starting...';
+                    document.getElementById('startBtn').disabled = true;
+                    
+                    const result = await window.electronAPI.startServer(9611);
+                    if (result.success) {
+                        this.log('✅ Exam server started successfully', 'success');
+                        // Check status multiple times to ensure UI updates
+                        setTimeout(() => this.checkServerStatus(), 1000);
+                        setTimeout(() => this.checkServerStatus(), 3000);
+                        setTimeout(() => this.checkServerStatus(), 5000);
+                    } else {
+                        this.log('❌ Failed to start server: ' + result.error, 'error');
+                        document.getElementById('startBtn').disabled = false;
+                    }
+                } catch (error) {
+                    this.log('❌ Error starting server: ' + error.message, 'error');
+                }
+            }
+            
+            async stopServer() {
+                try {
+                    this.log('🛑 Stopping exam server...', 'info');
+                    
+                    document.getElementById('statusContainer').className = 'status-container status-connecting';
+                    document.getElementById('serverStatusText').textContent = 'Server Status: Stopping...';
+                    document.getElementById('stopBtn').disabled = true;
+                    
+                    const result = await window.electronAPI.stopServer();
+                    if (result.success) {
+                        this.log('✅ Exam server stopped successfully', 'success');
+                        this.updateServerStatus({ isRunning: false, connectedCandidates: 0 });
+                    } else {
+                        this.log('❌ Failed to stop server: ' + result.error, 'error');
+                    this.checkServerStatus();
+                    }
+                } catch (error) {
+                    this.log('❌ Error stopping server: ' + error.message, 'error');
+                    this.checkServerStatus();
+                }
+            }
+            
+            updateSystemMetrics() {
+                // Simulate system metrics - in real app, these would come from system APIs
+                const cpuUsage = Math.floor(Math.random() * 30) + 5;
+                const memoryUsage = Math.floor(Math.random() * 500) + 100;
+                const uptime = Date.now() - this.systemStartTime;
+                
+                document.getElementById('cpuUsage').textContent = cpuUsage + '%';
+                document.getElementById('memoryUsage').textContent = memoryUsage + ' MB';
+                document.getElementById('systemUptime').textContent = this.formatUptime(uptime);
+            }
+            
+            formatUptime(milliseconds) {
+                const seconds = Math.floor(milliseconds / 1000);
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = seconds % 60;
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            
+            updateLastUpdateTime() {
+                document.getElementById('lastUpdate').textContent = 
+                    'Last update: ' + new Date().toLocaleTimeString();
+            }
+            
+            updateCurrentTime() {
+                document.getElementById('currentTime').textContent = 
+                    new Date().toLocaleTimeString();
+            }
+            
+            log(message, level = 'info') {
+                const logContainer = document.getElementById('logContainer');
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                
+                const timestamp = new Date().toLocaleTimeString();
+                const levelColor = level === 'error' ? '#e53e3e' : level === 'success' ? '#38a169' : '#d69e2e';
+                
+                logEntry.innerHTML = `
+                    <span class="log-time">${timestamp}</span>
+                    <span class="log-message">${message}</span>
+                `;
+                
+                logContainer.appendChild(logEntry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+                
+                this.logCount++;
+                document.getElementById('logCount').textContent = this.logCount + ' ENTRIES';
+                
+                // Keep only last 50 log entries
+                if (logContainer.children.length > 50) {
+                    logContainer.removeChild(logContainer.firstChild);
+                }
+            }
+            
+            clearCandidates() {
+                const tbody = document.getElementById('candidatesTableBody');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center" style="padding: 40px; color: #a0aec0;">
+                            <div style="font-size: 1.2em; margin-bottom: 10px;">👥</div>
+                            <div>No candidates connected</div>
+                        </td>
+                    </tr>
+                `;
+                
+                // Update metrics
+                document.getElementById('totalCandidates').textContent = '0';
+                document.getElementById('activeCandidates').textContent = '0';
+                document.getElementById('averageProgress').textContent = '0%';
+                document.getElementById('securityEvents').textContent = '0';
+                document.getElementById('monitoringBadge').textContent = '0 CANDIDATES';
+            }
+            
+            setupRealTimeUpdates() {
+                // Fetch real candidate data from server API
+                setInterval(() => {
+                    if (this.isServerRunning) {
+                        this.fetchRealCandidateData();
+                    }
+                }, 5000);
+            }
+            
+            async fetchRealCandidateData() {
+                try {
+                    // Fetch real submissions data from server
+                    const response = await fetch('http://localhost:9611/api/submissions');
+                    if (!response.ok) {
+                        throw new Error(`Server API error: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    if (data.success && data.submissions && data.submissions.length > 0) {
+                        // Clear existing test data
+                        this.connectedCandidates.clear();
+                        
+                        // Add real candidates from submissions
+                        data.submissions.forEach(submission => {
+                            const progress = Math.round((submission.answers.length / submission.totalQuestions) * 100);
+                            
+                            this.connectedCandidates.set(submission.candidateId, {
+                                armyNumber: submission.armyNumber,
+                                name: submission.name,
+                                rank: submission.rank,
+                                unit: submission.unit,
+                                progress: progress,
+                                score: submission.score,
+                                totalQuestions: submission.totalQuestions,
+                                percentage: submission.percentage,
+                                status: progress === 100 ? 'completed' : 'active',
+                                submittedAt: submission.submittedAt
+                            });
+                        });
+                        
+                        this.updateCandidatesTable();
+                    } else {
+                        // No submissions yet, show empty state
+                        this.showEmptyState();
+                    }
+                } catch (error) {
+                    console.error('Error fetching candidate data:', error);
+                    // If server not available, show empty state
+                    this.showEmptyState();
+                }
+            }
+            
+            showEmptyState() {
+                this.connectedCandidates.clear();
+                const tbody = document.getElementById('candidatesTableBody');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center" style="padding: 40px; color: #a0aec0;">
+                            <div style="font-size: 1.2em; margin-bottom: 10px;">👥</div>
+                            <div>No candidates connected</div>
+                            <div style="font-size: 0.9em; margin-top: 5px;">Candidates will appear here when they start the exam</div>
+                        </td>
+                    </tr>
+                `;
+                
+                // Update metrics to zero
+                document.getElementById('totalCandidates').textContent = '0';
+                document.getElementById('activeCandidates').textContent = '0';
+                document.getElementById('monitoringBadge').textContent = '0 CANDIDATES';
+            }
+            
+            updateCandidatesTable() {
+                const tbody = document.getElementById('candidatesTableBody');
+                tbody.innerHTML = '';
+                
+                this.connectedCandidates.forEach((candidate, id) => {
+                    const row = document.createElement('tr');
+                    
+                    // Determine status color and text
+                    let statusClass = 'status-inactive';
+                    let statusText = 'INACTIVE';
+                    
+                    if (candidate.status === 'completed') {
+                        statusClass = 'status-completed';
+                        statusText = 'COMPLETED';
+                    } else if (candidate.status === 'active') {
+                        statusClass = 'status-active';
+                        statusText = 'ACTIVE';
+                    }
+                    
+                    row.innerHTML = `
+                        <td><strong>${candidate.armyNumber}</strong></td>
+                        <td>
+                            <div>${candidate.name}</div>
+                            <div style="font-size: 0.8em; color: #a0aec0;">${candidate.rank || 'N/A'} • ${candidate.unit || 'N/A'}</div>
+                        </td>
+                        <td class="progress-cell">
+                            <div>${candidate.progress}% (${candidate.score || 0}/${candidate.totalQuestions || 5})</div>
+                            <div class="progress-mini">
+                                <div class="progress-mini-fill" style="width: ${candidate.progress}%"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge ${statusClass}">
+                                ${statusText}
+                            </span>
+                            ${candidate.percentage ? `<div style="font-size: 0.8em; color: #a0aec0; margin-top: 2px;">Score: ${candidate.percentage}%</div>` : ''}
+                        </td>
+                        <td>
+                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8em;" onclick="window.ui.viewCandidateDetails('${candidate.armyNumber}')">
+                                View
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                // Update metrics
+                const totalCandidates = this.connectedCandidates.size;
+                const activeCandidates = Array.from(this.connectedCandidates.values()).filter(c => c.status === 'active' || c.status === 'completed').length;
+                
+                document.getElementById('totalCandidates').textContent = totalCandidates;
+                document.getElementById('activeCandidates').textContent = activeCandidates;
+                document.getElementById('monitoringBadge').textContent = totalCandidates + ' CANDIDATES';
+            }
+            
+            viewCandidateDetails(armyNumber) {
+                const candidate = this.connectedCandidates.get(armyNumber);
+                if (candidate) {
+                    alert(`Candidate Details:\n\nArmy Number: ${candidate.armyNumber}\nName: ${candidate.name}\nRank: ${candidate.rank}\nUnit: ${candidate.unit}\nProgress: ${candidate.progress}%\nScore: ${candidate.score}/${candidate.totalQuestions} (${candidate.percentage}%)\nStatus: ${candidate.status.toUpperCase()}`);
+                }
+            }
+            
+            // Additional methods for file upload and export would go here
+            async uploadFile(type, extensions) {
+                this.log(`📁 Uploading ${type} file...`, 'info');
+                // Implementation would go here
+            }
+            
+            async exportResults() {
+                console.log('=== EXPORT RESULTS METHOD CALLED ===');
+                return this.exportResultsWord();
+            }
+
+            async exportResultsWord() {
+                console.log('=== EXPORT RESULTS WORD UI METHOD CALLED ===');
+                this.log('📊 Exporting results to Word document...', 'info');
+                
+                try {
+                    console.log('Step A: Checking server status...');
+                    
+                    // First check if server is running
+                    if (!this.isServerRunning) {
+                        console.error('Server is not running');
+                        this.log('❌ Server is not running. Cannot export results.', 'error');
+                        return;
+                    }
+                    
+                    console.log('Step B: Getting server status...');
+                    
+                    // Get server status to check for submissions
+                    const status = await window.electronAPI.getServerStatus();
+                    console.log('Server status:', status);
+                    this.log(`📋 Server status: ${status.connectedCandidates} candidates, ${status.uploadedUsers} users, ${status.uploadedQuestions} questions`, 'info');
+                    
+                    console.log('Step C: Calling exportResultsWord API...');
+                    
+                    const result = await window.electronAPI.exportResultsWord();
+                    
+                    console.log('Step D: Export result:', result);
+                    
+                    if (result.success) {
+                        console.log('Export successful!');
+                        
+                        if (result.format === 'HTML') {
+                            this.log(`✅ Results exported as HTML (Word format not available)`, 'success');
+                            this.log(`📁 File location: ${result.filePath}`, 'info');
+                            this.log(`📊 Export summary: ${result.resultsCount} candidates, ${result.fileSize} bytes`, 'info');
+                            
+                            alert(`Export successful!\n\nNote: Exported as HTML file because Word format is not available.\n\nFile saved to: ${result.filePath}\n\nFile size: ${result.fileSize} bytes\n\nTo enable Word export, run: install-docx.bat`);
+                        } else {
+                            this.log(`✅ Word document exported successfully!`, 'success');
+                            this.log(`📁 File location: ${result.filePath}`, 'info');
+                            this.log(`📊 Export summary: ${result.resultsCount} candidates, ${result.fileSize} bytes`, 'info');
+                            
+                            alert(`Export successful!\n\nFile saved to: ${result.filePath}\n\nFile size: ${result.fileSize} bytes\n\nThe file location has been opened in Windows Explorer.`);
+                        }
+                    } else {
+                        console.error('Export failed:', result.error);
+                        this.log(`❌ Export failed: ${result.error}`, 'error');
+                        alert(`Export failed: ${result.error}`);
+                    }
+                } catch (error) {
+                    console.error('Export error:', error);
+                    this.log(`💥 Word export error: ${error.message}`, 'error');
+                }
+            }
+
+
+
+            async startExam() {
+                const duration = document.getElementById('examDuration').value;
+                if (!duration || duration < 5) {
+                    this.log('Invalid exam duration. Please set a duration of at least 5 minutes.', 'error');
+                    return;
+                }
+
+                this.log('🚀 Starting exam...', 'info');
+                const result = await window.electronAPI.startExam({ duration });
+
+                if (result.success) {
+                    this.log('✅ Exam started successfully!', 'success');
+                } else {
+                    this.log(`❌ Failed to start exam: ${result.error}`, 'error');
+                }
+            }
+        }
+
+        // Global functions
+        function startServer() {
+            if (window.enhancedUI) window.enhancedUI.startServer();
+        }
+
+        function stopServer() {
+            if (window.enhancedUI) window.enhancedUI.stopServer();
+        }
+
+        function startExam() {
+            if (window.enhancedUI) window.enhancedUI.startExam();
+        }
+
+        async function uploadUsersFile() {
+            try {
+                if (window.enhancedUI) {
+                    window.enhancedUI.log('📁 Starting users file upload...', 'info');
+                    
+                    const usersBtn = document.getElementById('usersBtn');
+                    if (usersBtn) {
+                        const originalText = usersBtn.innerHTML;
+                        usersBtn.innerHTML = '⏳ Opening file dialog...';
+                        usersBtn.disabled = true;
+                    }
+
+                    const result = await window.electronAPI.uploadUsersFile();
+                    
+                    if (result.success) {
+                        window.enhancedUI.log(`✅ Users file uploaded: ${result.usersCount} users loaded`, 'success');
+                        document.getElementById('usersStatus').innerHTML = `✅ ${result.fileName} (${result.usersCount} users)`;
+                        document.getElementById('usersStatus').className = 'upload-status status-success';
+                    } else {
+                        window.enhancedUI.log(`❌ Upload failed: ${result.error}`, 'error');
+                        document.getElementById('usersStatus').innerHTML = `❌ Upload failed: ${result.error}`;
+                        document.getElementById('usersStatus').className = 'upload-status status-error';
+                    }
+
+                    if (usersBtn) {
+                        usersBtn.innerHTML = originalText;
+                        usersBtn.disabled = false;
+                    }
+                }
+            } catch (error) {
+                window.enhancedUI.log(`💥 Upload error: ${error.message}`, 'error');
+                const usersBtn = document.getElementById('usersBtn');
+                if (usersBtn) {
+                    usersBtn.innerHTML = '📋 Select Users File';
+                    usersBtn.disabled = false;
+                }
+            }
+        }
+
+        async function uploadQuestionsFile() {
+            try {
+                if (window.enhancedUI) {
+                    window.enhancedUI.log('📝 Starting questions file upload...', 'info');
+                    
+                    const questionsBtn = document.getElementById('questionsBtn');
+                    if (questionsBtn) {
+                        const originalText = questionsBtn.innerHTML;
+                        questionsBtn.innerHTML = '⏳ Opening file dialog...';
+                        questionsBtn.disabled = true;
+                    }
+
+                    const result = await window.electronAPI.uploadQuestionsFile();
+                    
+                    if (result.success) {
+                        window.enhancedUI.log(`✅ Questions file uploaded: ${result.questionsCount} questions loaded`, 'success');
+                        document.getElementById('questionsStatus').innerHTML = `✅ ${result.fileName} (${result.questionsCount} questions, ${result.totalMarks} marks)`;
+                        document.getElementById('questionsStatus').className = 'upload-status status-success';
+                    } else {
+                        window.enhancedUI.log(`❌ Upload failed: ${result.error}`, 'error');
+                        document.getElementById('questionsStatus').innerHTML = `❌ Upload failed: ${result.error}`;
+                        document.getElementById('questionsStatus').className = 'upload-status status-error';
+                    }
+
+                    if (questionsBtn) {
+                        questionsBtn.innerHTML = originalText;
+                        questionsBtn.disabled = false;
+                    }
+                }
+            } catch (error) {
+                window.enhancedUI.log(`💥 Upload error: ${error.message}`, 'error');
+                const questionsBtn = document.getElementById('questionsBtn');
+                if (questionsBtn) {
+                    questionsBtn.innerHTML = '📝 Select Questions File';
+                    questionsBtn.disabled = false;
+                }
+            }
+        }
+
+        function exportResultsWord() {
+            if (window.ui) window.ui.exportResultsWord();
+        }
+
+        function exportResults() {
+            console.log('Export results called - using Word format');
+            if (window.ui) {
+                window.ui.exportResultsWord();
+            } else {
+                console.error('UI not initialized');
+                alert('Cannot export results: UI not initialized');
+            }
+        }
+
+        async function testExport() {
+            console.log('=== TEST EXPORT FUNCTION CALLED ===');
+            
+            try {
+                console.log('Testing direct API call...');
+                const result = await window.electronAPI.exportResultsWord();
+                console.log('Direct API result:', result);
+                
+                if (result.success) {
+                    alert(`Export successful! File saved to: ${result.filePath}`);
+                } else {
+                    alert(`Export failed: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Test export error:', error);
+                alert(`Test export error: ${error.message}`);
+            }
+        }
+
+        function broadcastMessage() {
+            if (window.enhancedUI) window.enhancedUI.log('📢 Broadcast message dialog opened', 'info');
+        }
+
+        function forceSubmitAll() {
+            if (window.enhancedUI) window.enhancedUI.log('⏰ Force submit all confirmation', 'warning');
+        }
+
+        function extendExamTime() {
+            if (window.enhancedUI) window.enhancedUI.log('➕ Extend exam time dialog opened', 'info');
+        }
+
+        function clearLogs() {
+            if (window.enhancedUI) {
+                document.getElementById('logContainer').innerHTML = '';
+                window.enhancedUI.logCount = 0;
+                document.getElementById('logCount').textContent = '0 ENTRIES';
+                window.enhancedUI.log('🗑️ Logs cleared successfully', 'info');
+            }
+        }
+
+        function exportLogs() {
+            if (window.enhancedUI) window.enhancedUI.log('💾 Exporting system logs...', 'info');
+        }
+
+        // Initialize enhanced UI
+        let enhancedUI;
+        document.addEventListener('DOMContentLoaded', () => {
+            enhancedUI = new EnhancedInvigilatorUI();
+            window.enhancedUI = enhancedUI;
+            window.ui = enhancedUI; // Make sure window.ui points to the same object
+        });
+
+        // Loading and notification handlers
+        window.electronAPI.onShowLoading = (callback) => {
+            window.addEventListener('show-loading', (event) => callback(event.detail));
+        };
+
+        window.electronAPI.onHideLoading = (callback) => {
+            window.addEventListener('hide-loading', callback);
+        };
+
+        window.electronAPI.onShowNotification = (callback) => {
+            window.addEventListener('show-notification', (event) => callback(event.detail));
+        };
+
+        // IPC event listeners
+        if (window.electronAPI) {
+            // Listen for loading events
+            window.addEventListener('message', (event) => {
+                if (event.data.type === 'show-loading') {
+                    showLoading(event.data.message, event.data.details);
+                } else if (event.data.type === 'hide-loading') {
+                    hideLoading();
+                } else if (event.data.type === 'show-notification') {
+                    showNotification(event.data);
+                }
+            });
+        }
+
+        function showLoading(message = 'Loading...', details = '') {
+            const overlay = document.getElementById('loadingOverlay');
+            const messageEl = document.getElementById('loadingMessage');
+            const detailsEl = document.getElementById('loadingDetails');
+            
+            if (overlay && messageEl && detailsEl) {
+                messageEl.textContent = message;
+                detailsEl.textContent = details;
+                overlay.classList.add('show');
+            }
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.remove('show');
+            }
+        }
+
+        function showNotification(data) {
+            const toast = document.getElementById('notificationToast');
+            const icon = document.getElementById('notificationIcon');
+            const title = document.getElementById('notificationTitle');
+            const message = document.getElementById('notificationMessage');
+            
+            if (toast && icon && title && message) {
+                // Set icon based on type
+                const icons = {
+                    success: '✅',
+                    error: '❌',
+                    warning: '⚠️',
+                    info: 'ℹ️'
+                };
+                
+                icon.textContent = icons[data.type] || 'ℹ️';
+                title.textContent = data.title || 'Notification';
+                message.textContent = data.message || '';
+                
+                toast.classList.add('show');
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    hideNotification();
+                }, 5000);
+            }
+        }
+
+        function hideNotification() {
+            const toast = document.getElementById('notificationToast');
+            if (toast) {
+                toast.classList.remove('show');
+            }
+        }
+
+        // Check docx status on load
+        if (window.electronAPI && window.electronAPI.getDocxStatus) {
+            window.electronAPI.getDocxStatus().then(status => {
+                console.log('DOCX Status:', status);
+                if (window.enhancedUI) {
+                    window.enhancedUI.log(`📦 Export format: ${status.exportFormat}`, 'info');
+                }
+            }).catch(error => {
+                console.error('Error checking docx status:', error);
+            });
+        }
+
+        // About and Support dialogs
+        function showAboutDialog() {
+            const aboutText = `Army Examination System v2.0.0
+
+Professional examination management system designed specifically for Indian Army.
+
+© 2025 Kapri Software Pvt Ltd. All rights reserved.
+
+Features:
+• Secure offline examination environment
+• Real-time candidate monitoring
+• Professional result generation
+• Multi-computer network support
+• Comprehensive security logging
+
+Developed with pride for the Indian Army.
+
+For technical support: kaprisoftware.pvt.ltd@gmail.com
+Website: https://kaprisoftware.com`;
+            alert(aboutText);
+        }
+
+        function showSupportDialog() {
+            const supportText = `Technical Support Information
+
+Email: kaprisoftware.pvt.ltd@gmail.com
+Phone: +91-XXXX-XXXXXX
+Website: https://kaprisoftware.com
+
+For immediate assistance:
+1. Check the CLIENT_SETUP_GUIDE.md file
+2. Review troubleshooting section
+3. Contact support with error details
+
+System Information:
+• Version: 2.0.0
+• Platform: Windows
+• Architecture: 64-bit
+
+© 2025 Kapri Software Pvt Ltd.`;
+            alert(supportText);
+        }
+    </script>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-icon">⏳</div>
+            <h3 id="loadingMessage">Loading...</h3>
+            <p id="loadingDetails"></p>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notificationToast" class="notification-toast">
+        <div class="notification-content">
+            <div id="notificationIcon" class="notification-icon"></div>
+            <div class="notification-text">
+                <h4 id="notificationTitle"></h4>
+                <p id="notificationMessage"></p>
+            </div>
+            <button onclick="hideNotification()" class="notification-close">×</button>
+        </div>
+    </div>
+
+    <style>
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading-overlay.show {
+            display: flex !important;
+        }
+        
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        
+        .loading-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            animation: spin 2s linear infinite;
+        }
+        
+        .loading-bar {
+            width: 200px;
+            height: 4px;
+            background: #eee;
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 20px auto 0;
+        }
+        
+        .loading-progress {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            animation: loading 2s infinite;
+        }
+        
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .notification-toast {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            padding: 20px;
+            max-width: 350px;
+            z-index: 9999;
+            border-left: 4px solid #007bff;
+        }
+        
+        .notification-toast.show {
+            display: block !important;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .notification-content {
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .notification-icon {
+            margin-right: 12px;
+            font-size: 24px;
+        }
+        
+        .notification-text {
+            flex: 1;
+        }
+        
+        .notification-text h4 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .notification-text p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .notification-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            margin-left: 10px;
+        }
+        
+        .notification-close:hover {
+            color: #333;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "type": "UNCAUGHT_EXCEPTION",
+  "details": "Application crash: Cannot read properties of null (reading 'webContents')",
+  "severity": "CRITICAL",
+  "stack": "TypeError: Cannot read properties of null (reading 'webContents')\n    at Socket.<anonymous> (D:\\Army Exam App\\candidateApp\\src\\main\\main.js:405:24)\n    at Emitter.emit (D:\\Army Exam App\\candidateApp\\node_modules\\@socket.io\\component-emitter\\lib\\cjs\\index.js:143:20)\n    at Socket.onclose (D:\\Army Exam App\\candidateApp\\node_modules\\socket.io-client\\build\\cjs\\socket.js:471:14)\n    at Socket.disconnect (D:\\Army Exam App\\candidateApp\\node_modules\\socket.io-client\\build\\cjs\\socket.js:685:18)\n    at cleanupResources (D:\\Army Exam App\\candidateApp\\src\\main\\main.js:175:16)\n    at BrowserWindow.<anonymous> (D:\\Army Exam App\\candidateApp\\src\\main\\main.js:116:9)\n    at BrowserWindow.emit (node:events:531:35)",
+  "timestamp": "2025-10-10T03:16:34.700Z",
+  "sessionId": "unknown"
+}

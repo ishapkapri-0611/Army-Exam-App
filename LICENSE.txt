@@ -1,0 +1,48 @@
+ARMY EXAMINATION SYSTEM - SOFTWARE LICENSE AGREEMENT
+
+Copyright © 2025 Kapri Software Pvt Ltd. All rights reserved.
+
+PROPRIETARY SOFTWARE LICENSE
+
+This software is the proprietary property of Kapri Software Pvt Ltd. and is protected by copyright laws and international treaty provisions. This license grants you specific rights to use the software under the following terms and conditions:
+
+GRANT OF LICENSE:
+Subject to the terms of this agreement, Kapri Software Pvt Ltd. grants you a non-exclusive, non-transferable license to use the Army Examination System software solely for conducting official army examinations.
+
+PERMITTED USES:
+- Install and use the software on computers within your organization
+- Conduct official army examinations using the provided applications
+- Create backup copies for archival purposes
+- Distribute the software within your organization for official use
+
+RESTRICTIONS:
+- You may not modify, reverse engineer, or decompile the software
+- You may not distribute the software outside your organization
+- You may not use the software for commercial purposes
+- You may not remove or alter any copyright notices
+
+DISCLAIMER OF WARRANTIES:
+This software is provided "as is" without warranty of any kind, either express or implied, including but not limited to the implied warranties of merchantability and fitness for a particular purpose.
+
+LIMITATION OF LIABILITY:
+In no event shall Kapri Software Pvt Ltd. be liable for any damages whatsoever arising out of the use of or inability to use this software.
+
+SUPPORT:
+Technical support is provided as specified in your service agreement. Contact ishapkapri4@gmail.com for assistance.
+
+TERMINATION:
+This license is effective until terminated. Your rights under this license will terminate automatically without notice if you fail to comply with any term of this agreement.
+
+GOVERNING LAW:
+This agreement shall be governed by the laws of [India/Uttrakhand].
+
+By installing or using this software, you acknowledge that you have read this agreement, understand it, and agree to be bound by its terms and conditions.
+
+---
+
+For technical support or licensing inquiries:
+Email: ishapkapri4@gmail.com
+
+
+Army Examination System v2.0.0
+© 2025 Kapri Software Private Limited(KSPL). All rights reserved.

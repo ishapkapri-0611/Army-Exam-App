@@ -1,0 +1,7 @@
+{
+  "type": "EXAM_SUBMISSION_ERROR",
+  "details": "Failed to submit exam: networkDiscovery.stopDiscovery is not a function",
+  "severity": "HIGH",
+  "timestamp": "2025-10-10T03:27:24.086Z",
+  "sessionId": 1
+}

@@ -1,0 +1,102 @@
+{
+  "name": "army-exam-invigilator",
+  "version": "2.0.0",
+  "description": "Professional Army Examination Management System - Invigilator Application",
+  "author": {
+    "name": "Ishap Kapri",
+    "email": "ishapkapri4@gmail.com",
+    "company": "Kapri Software Pvt Ltd."
+  },
+  "copyright": "© 2025 Kapri Software Pvt Ltd. All rights reserved.",
+  "homepage": "https://kaprisoftware.com/army-exam-system",
+  "main": "src/main/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "build": "electron-builder --win --x64",
+    "build-portable": "electron-builder --win --x64 --config.nsis.oneClick=false --config.nsis.allowToChangeInstallationDirectory=true",
+    "pack": "electron-builder --dir"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.0",
+    "docx": "^9.5.1",
+    "electron": "^38.1.2",
+    "express": "^4.18.2",
+    "mammoth": "^1.6.0",
+    "node-fetch": "^2.7.0",
+    "pdfkit": "^0.17.2",
+    "socket.io": "^4.5.4",
+    "sqlite3": "^5.1.4"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.kaprisoftware.army.exam.invigilator",
+    "productName": "Army Exam Invigilator",
+    "copyright": "© 2025 Kapri Software Pvt Ltd. All rights reserved.",
+    "directories": {
+      "output": "../../dist/invigilator"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "publisherName": "Kapri Software Pvt Ltd.",
+      "verInfo": {
+        "CompanyName": "Kapri Software Pvt Ltd.",
+        "FileDescription": "Army Examination Management System - Invigilator",
+        "ProductName": "Army Exam Invigilator",
+        "InternalName": "ArmyExamInvigilator",
+        "OriginalFilename": "Army-Exam-Invigilator.exe",
+        "LegalCopyright": "© 2025 Kapri Software Pvt Ltd. All rights reserved."
+      }
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Army Exam Invigilator"
+    },"isplayLanguageSelector": false,
+      "installerLanguages": ["en"],
+      "license": "LICENSE.txt",
+      "warningsAsErrors": false,
+      "include": "build/installer.nsh"
+    },
+    "portable": {
+      "artifactName": "Army-Exam-Invigilator-Portable.exe"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraFiles": [
+      {
+        "from": "../LICENSE.txt",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "../CREDITS_AND_ABOUT.md",
+        "to": "CREDITS_AND_ABOUT.md"
+      },
+      {
+        "from": "../CLIENT_SETUP_GUIDE.md",
+        "to": "CLIENT_SETUP_GUIDE.md"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "../shared-lib",
+        "to": "shared-lib"
+      }
+    ]
+  }
+

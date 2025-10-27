@@ -1,0 +1,23 @@
+{
+  "name": "army-exam-app",
+  "version": "1.0.0",
+  "description": "Army Exam Application - Secure Testing Platform",
+  "main": "invigilator-app/src/main/main.js",
+  "scripts": {
+    "install-all": "npm install && cd invigilatorApp && npm install && cd ../candidateApp && npm install",
+    "dev-invigilator": "cd invigilatorApp && npm run dev",
+    "dev-candidate": "cd candidateApp && npm run dev",
+    "build-invigilator": "cd invigilatorApp && npm run build",
+    "build-candidate": "cd candidateApp && npm run build"
+  },
+  "author": {
+    "name": "Ishap Kapri",
+    "email": "ishapkapri4@gmail.com",
+    "company": "Kapri Software Pvt Ltd."
+  },
+  "license": "MIT",
+  "dependencies": {
+    "docx": "^9.5.1",
+    "node-fetch": "^2.7.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "type": "CANDIDATE_LOGIN_SUCCESS",
+  "details": "Candidate John Ham (HV123456A) logged in successfully",
+  "severity": "INFO",
+  "candidate": {
+    "armyNumber": "HV123456A",
+    "name": "John Ham",
+    "rank": "Captain",
+    "unit": "4th Battalion"
+  },
+  "timestamp": "2025-10-11T15:24:40.892Z",
+  "sessionId": 1
+}

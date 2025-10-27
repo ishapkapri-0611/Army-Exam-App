@@ -1,0 +1,8 @@
+{
+  "type": "UNCAUGHT_EXCEPTION",
+  "details": "Application crash: networkDiscovery.stopDiscovery is not a function",
+  "severity": "CRITICAL",
+  "stack": "TypeError: networkDiscovery.stopDiscovery is not a function\n    at cleanupResources (D:\\Army Exam App\\candidateApp\\src\\main\\main.js:181:26)\n    at App.<anonymous> (D:\\Army Exam App\\candidateApp\\src\\main\\main.js:607:5)\n    at App.emit (node:events:531:35)",
+  "timestamp": "2025-10-10T03:16:34.714Z",
+  "sessionId": "unknown"
+}

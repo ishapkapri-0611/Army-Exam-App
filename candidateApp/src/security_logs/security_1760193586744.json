@@ -1,0 +1,8 @@
+{
+  "type": "EXAM_SUBMITTED",
+  "details": "Exam submitted successfully for HV123456A",
+  "severity": "INFO",
+  "answersCount": 5,
+  "timestamp": "2025-10-11T14:39:46.744Z",
+  "sessionId": 1
+}

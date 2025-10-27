@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Army Exam - In Progress</title>
+    <style>
+        :root {
+            --army-dark: #1e3c72;
+            --army-medium: #2a5298;
+            --army-light: #4a90e2;
+            --warning: #e74c3c;
+            --success: #27ae60;
+            --gold: #ff6b35;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--army-dark) 0%, var(--army-medium) 100%);
+            color: white;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .exam-container {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            padding: 20px;
+            gap: 15px;
+        }
+        
+        /* Header Styles */
+        .exam-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .candidate-info {
+            font-size: 1.1em;
+        }
+        
+        .candidate-info strong {
+            color: var(--gold);
+        }
+        
+        .timer-container {
+            text-align: center;
+        }
+        
+        .timer {
+            font-size: 2em;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .timer.blinking {
+            animation: blink 1s infinite;
+        }
+        
+        .timer.critical {
+            color: var(--warning);
+            animation: critical-blink 0.5s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        @keyframes critical-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.2; }
+        }
+        
+        /* Main Content */
+        .exam-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: 100%;
+        }
+        
+        /* Question Navigation */
+        .question-nav {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .nav-header {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .questions-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+        
+        .question-number {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .question-number:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .question-number.active {
+            border-color: var(--gold);
+            background: rgba(255,107,53,0.2);
+        }
+        
+        .question-number.answered {
+            background: rgba(39,174,96,0.3);
+        }
+        
+        .question-number.marked {
+            background: rgba(52,152,219,0.3);
+        }
+        
+        /* Question Display */
+        .question-display {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .question-text {
+            font-size: 1.3em;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--gold);
+        }
+        
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .option {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .option:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(5px);
+        }
+        
+        .option.selected {
+            border-color: var(--gold);
+            background: rgba(255,107,53,0.2);
+        }
+        
+        .option-letter {
+            font-weight: bold;
+            color: var(--gold);
+            margin-right: 10px;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            margin: 15px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--gold), var(--success));
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        /* Footer */
+        .exam-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: var(--gold);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #e55a2b;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .btn-danger {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .security-warning {
+            background: rgba(231,76,60,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid var(--warning);
+            font-size: 0.9em;
+        }
+        
+        /* Auto-save indicator */
+        .auto-save {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(39,174,96,0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .auto-save.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="exam-container">
+        <!-- Header -->
+        <div class="exam-header">
+            <div class="candidate-info">
+                <strong id="candidateName">Loading...</strong> | 
+                Army No: <span id="armyNumber">---</span> |
+                Rank: <span id="candidateRank">---</span>
+            </div>
+            <div class="timer-container">
+                <div class="timer" id="examTimer">60:00</div>
+                <div id="timerStatus">Time Remaining</div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="exam-content">
+            <!-- Question Navigation -->
+            <div class="question-nav">
+                <div class="nav-header">
+                    <h3>Questions</h3>
+                    <div class="progress-text" id="progressText">0/0 answered</div>
+                </div>
+                <div class="questions-grid" id="questionsGrid">
+                    <!-- Questions will be populated by JavaScript -->
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Question Display -->
+            <div class="question-display">
+                <div class="question-text" id="questionText">
+                    Loading question...
+                </div>
+                <div class="options-container" id="optionsContainer">
+                    <!-- Options will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="exam-footer">
+            <div class="security-warning" id="securityWarning">
+                🔒 Exam in progress - Security monitoring active
+                <span id="securityStatus" style="margin-left: 10px; font-size: 0.8em;">Initializing...</span>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="markForReview()">Mark for Review</button>
+                <button class="btn btn-secondary" onclick="previousQuestion()">Previous</button>
+                <button class="btn btn-secondary" onclick="nextQuestion()">Next</button>
+                <button class="btn btn-danger" onclick="submitExam()" id="submitBtn">Submit Exam</button>
+            </div>
+        </div>
+        
+        <!-- Auto-save Indicator -->
+        <div class="auto-save" id="autoSaveIndicator">Answers auto-saved</div>
+    </div>
+
+    <script>
+        // Global error handler to catch length property errors
+        window.addEventListener('error', (event) => {
+            console.error('=== GLOBAL ERROR CAUGHT ===');
+            console.error('Error message:', event.message);
+            console.error('Error filename:', event.filename);
+            console.error('Error line:', event.lineno);
+            console.error('Error column:', event.colno);
+            console.error('Error object:', event.error);
+            console.error('Stack trace:', event.error?.stack);
+            
+            if (event.message.includes('length')) {
+                console.error('🚨 LENGTH PROPERTY ERROR DETECTED!');
+                console.error('This is likely the source of the submission error.');
+            }
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('=== UNHANDLED PROMISE REJECTION ===');
+            console.error('Reason:', event.reason);
+            console.error('Promise:', event.promise);
+        });
+        
+        console.log('Global error handlers installed');
+    </script>
+    <script src="security-manager.js"></script>
+    <script src="exam-timer.js"></script>
+    <script src="exam-controller.js"></script>
+</body>
+</html>

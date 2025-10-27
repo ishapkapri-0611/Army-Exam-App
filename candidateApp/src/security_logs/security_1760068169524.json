@@ -1,0 +1,10 @@
+{
+  "type": "RENDERER_ERROR",
+  "details": "EXAM_SUBMISSION: Exam submission error",
+  "severity": "MEDIUM",
+  "error": "Cannot read properties of undefined (reading 'length')",
+  "timestamp": "2025-10-10T03:49:29.524Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) army-exam-candidate/2.0.0 Chrome/140.0.7339.133 Electron/38.1.2 Safari/537.36",
+  "url": "file:///D:/Army%20Exam%20App/candidateApp/src/renderer/exam-page.html",
+  "sessionId": 1
+}

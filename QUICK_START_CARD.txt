@@ -1,0 +1,44 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        ARMY EXAM SYSTEM - QUICK START                       ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  📁 FIRST-TIME SETUP (One Time Only)                                         ║
+║  1. Copy "Army Exam System" folder to your computer                          ║
+║  2. Right-click BUILD_PORTABLE_ONLY.bat → "Run as administrator"             ║
+║  3. Wait 5-10 minutes for build to complete                                  ║
+║  4. Find .exe files in dist/invigilator/ and dist/candidate/ folders         ║
+║                                                                              ║
+║  📝 PREPARE EXAM FILES                                                        ║
+║  1. Create candidates.docx file (Army Number, Name, Rank, Unit)              ║
+║  2. Create questions.docx file (Q1. Question? [marks] A. B. C. D.)           ║
+║                                                                              ║
+║  🎯 EXAM DAY (Admin Computer)                                                 ║
+║  1. Double-click: dist/invigilator/Army-Exam-Invigilator-Portable.exe        ║
+║  2. Upload → Candidates file                                                 ║
+║  3. Upload → Questions file                                                  ║
+║  4. Click → Start Server (note IP address)                                  ║
+║  5. Monitor candidates in real-time                                          ║
+║                                                                              ║
+║  👥 CANDIDATES                                                               ║
+║  1. Double-click: dist/candidate/Army-Exam-Candidate-Portable.exe            ║
+║  2. Enter IP address (if multiple computers)                                 ║
+║  3. Login with Army Number                                                   ║
+║  4. Take exam                                                                ║
+║                                                                              ║
+║  📊 RESULTS                                                                   ║
+║  1. Click → Calculate Results                                                ║
+║  2. Click → Export Results                                                   ║
+║  3. Save Word document                                                       ║
+║                                                                              ║
+║  🔧 TROUBLESHOOTING                                                           ║
+║  • Build fails → Run BUILD_PORTABLE_ONLY.bat as administrator               ║
+║  • "Windows protected your PC" → Click "More info" → "Run anyway"           ║
+║  • App won't start → Right-click → "Run as administrator"                   ║
+║  • Can't connect → Check IP address and network                             ║
+║  • Upload fails → Check file format (.docx) and content                     ║
+║                                                                              ║
+║  📞 SUPPORT: Check CLIENT_SETUP_GUIDE.md for detailed instructions          ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+PRINT THIS CARD AND KEEP IT HANDY DURING EXAMS

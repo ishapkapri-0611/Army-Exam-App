@@ -1,0 +1,30 @@
+[
+  {
+    "armyNumber": "JC123456A",
+    "name": "John Doe",
+    "rank": "Captain",
+    "unit": "1st Battalion",
+    "lineNumber": 1
+  },
+  {
+    "armyNumber": "JC654321B",
+    "name": "Jane Smith",
+    "rank": "Major",
+    "unit": "2nd Battalion",
+    "lineNumber": 2
+  },
+  {
+    "armyNumber": "JC543031A",
+    "name": "Jane Hash",
+    "rank": "Major",
+    "unit": "3rd Battalion",
+    "lineNumber": 3
+  },
+  {
+    "armyNumber": "HV123456A",
+    "name": "John Ham",
+    "rank": "Captain",
+    "unit": "4th Battalion",
+    "lineNumber": 4
+  }
+]
