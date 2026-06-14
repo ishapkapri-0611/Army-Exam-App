@@ -1,4 +1,4 @@
-const AnalyticsEngine = require('../../../shared-lib/utils/analytics-engine');
+const AnalyticsEngine = require('../../shared-lib/utils/analytics-engine');
 
 class MonitoringManager {
     constructor(io) {

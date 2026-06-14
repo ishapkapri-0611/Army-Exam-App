@@ -126,21 +126,18 @@ class ExamController {
     startExam() {
         const examDuration = this.examDuration || 60; // minutes
         
-        // Calculate remaining time based on server start time
-        let remainingTime = examDuration * 60; // default in seconds
+        // Each candidate gets full duration from when they personally start
+        const remainingTime = examDuration * 60; // full duration in seconds
         
-        if (this.examStartTime) {
-            const now = new Date();
-            const elapsedSeconds = Math.floor((now - this.examStartTime) / 1000);
-            remainingTime = Math.max(0, (examDuration * 60) - elapsedSeconds);
-            
-            console.log(`Exam started at: ${this.examStartTime}`);
-            console.log(`Current time: ${now}`);
-            console.log(`Elapsed: ${elapsedSeconds}s, Remaining: ${remainingTime}s`);
-        }
+        // Store individual candidate's start time
+        const candidateStartTime = new Date();
+        localStorage.setItem('candidateStartTime', candidateStartTime.toISOString());
+        
+        console.log(`Candidate starting exam at: ${candidateStartTime}`);
+        console.log(`Full duration: ${examDuration} minutes (${remainingTime} seconds)`);
         
         this.examTimer = new ExamTimer(
-            remainingTime, // pass remaining seconds directly
+            remainingTime, // pass full duration in seconds
             (time) => this.updateTimerDisplay(time),
             () => this.autoSubmitExam(),
             true // indicate this is in seconds, not minutes
@@ -182,8 +179,17 @@ class ExamController {
         this.currentQuestionIndex = index;
         const question = this.questions[index];
         
-        // Update question text
-        document.getElementById('questionText').textContent = `${index + 1}. ${question.text}`;
+        // Update question text — use innerHTML so images render
+        const questionTextEl = document.getElementById('questionText');
+        let questionHtml = `<span class="q-number">${index + 1}.</span> ${this.escapeHtml(question.text)}`;
+
+        // Append embedded images if present
+        if (question.images && question.images.length > 0) {
+            question.images.forEach(src => {
+                questionHtml += `<div class="question-image-wrapper"><img src="${src}" class="question-image" alt="Question image" /></div>`;
+            });
+        }
+        questionTextEl.innerHTML = questionHtml;
         
         // Update options
         const optionsContainer = document.getElementById('optionsContainer');
@@ -195,11 +201,15 @@ class ExamController {
             if (this.answers.get(index) === option.letter) {
                 optionElement.classList.add('selected');
             }
-            
-            optionElement.innerHTML = `
-                <span class="option-letter">${option.letter}.</span>
-                <span class="option-text">${option.text}</span>
-            `;
+
+            // Build option content — images in options
+            let optionContent = `<span class="option-letter">${option.letter}.</span>`;
+            if (option.image) {
+                optionContent += `<span class="option-text"><img src="${option.image}" class="option-image" alt="Option ${option.letter}" /></span>`;
+            } else {
+                optionContent += `<span class="option-text">${this.escapeHtml(option.text)}</span>`;
+            }
+            optionElement.innerHTML = optionContent;
             
             optionElement.addEventListener('click', (event) => this.selectAnswer(option.letter, event));
             optionsContainer.appendChild(optionElement);
@@ -435,12 +445,20 @@ class ExamController {
                 console.error('Error getting security report:', error);
             }
             
+            // Get candidate's individual start time
+            const candidateStartTime = localStorage.getItem('candidateStartTime');
+            const startTime = candidateStartTime ? new Date(candidateStartTime) : new Date();
+            const endTime = new Date();
+            const timeTaken = Math.floor((endTime - startTime) / 1000); // in seconds
+            
             const submissionData = {
                 armyNumber: candidateInfo.armyNumber,
                 candidateId: candidateInfo.armyNumber,
                 candidate: candidateInfo,
                 answers: formattedAnswers,
-                submittedAt: new Date().toISOString(),
+                submittedAt: endTime.toISOString(),
+                startedAt: startTime.toISOString(),
+                timeTaken: `${Math.floor(timeTaken / 60)} minutes ${timeTaken % 60} seconds`,
                 securityReport: securityReport
             };
 
@@ -472,30 +490,27 @@ class ExamController {
             if (result.success) {
                 console.log('✅ Exam submitted successfully!');
                 
-                // Clear stored data
+                // Store submission result for result page
+                if (result.result) {
+                    localStorage.setItem('examResult', JSON.stringify(result.result));
+                }
+                
+                // Clear exam data but keep candidate info and server info for result display
                 localStorage.removeItem('examQuestions');
                 localStorage.removeItem('examDuration');
                 localStorage.removeItem('examStartTime');
-                localStorage.removeItem('candidateInfo');
-                localStorage.removeItem('serverInfo');
+                localStorage.removeItem('candidateStartTime');
+                // Keep candidateInfo and serverInfo for result page
                 
-                // Show success message and close app
-                alert('Exam submitted successfully! The application will close now.');
+                // Show success message
+                alert('Exam submitted successfully! Your result will be displayed now.');
                 
-                console.log('Closing application...');
+                console.log('Redirecting to result page...');
                 
-                try {
-                    window.electronAPI.closeApp();
-                } catch (error) {
-                    console.error('Error closing app:', error);
-                    // Fallback: try emergency exit
-                    try {
-                        window.electronAPI.emergencyExit();
-                    } catch (emergencyError) {
-                        console.error('Emergency exit also failed:', emergencyError);
-                        alert('Please close the application manually.');
-                    }
-                }
+                // Redirect to result page
+                setTimeout(() => {
+                    window.location.href = 'result-page.html';
+                }, 1000);
             } else {
                 console.error('❌ Submission failed:', result.error);
                 alert('Submission failed: ' + result.error);
@@ -569,6 +584,17 @@ class ExamController {
         } catch (error) {
             console.error('Error stopping security monitoring:', error);
         }
+    }
+
+    // Safely escape plain text before putting into innerHTML
+    escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 }
 

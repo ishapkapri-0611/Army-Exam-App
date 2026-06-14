@@ -1,6 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const DocumentParser = require(path.join(__dirname, '..', '..', '..', 'shared-lib', 'utils', 'document-parser'));
+const DocumentParser = require('../../shared-lib/utils/document-parser');
 
 class Database {
     constructor() {

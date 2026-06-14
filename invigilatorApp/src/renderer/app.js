@@ -42,7 +42,8 @@ class ProductionInvigilatorUI {
                         <th>Army Number</th>
                         <th>Name</th>
                         <th>Rank</th>
-                        <th>Total Score</th>
+                        <th>Marks Obtained</th>
+                        <th>Total Marks</th>
                         <th>Percentage</th>
                     </tr>
                 </thead>
@@ -426,17 +427,18 @@ class ProductionInvigilatorUI {
         tableBody.innerHTML = '';
         if (!submissions || submissions.length === 0) {
             const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="5">No submissions available</td>';
+            row.innerHTML = '<td colspan="6">No submissions available</td>';
             tableBody.appendChild(row);
             return;
         }
         submissions.forEach(sub => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${sub.candidateId || ''}</td>
+                <td>${sub.candidateId || sub.armyNumber || ''}</td>
                 <td>${sub.name || '-'}</td>
                 <td>${sub.rank || '-'}</td>
-                <td>${Array.isArray(sub.answers) ? sub.answers.length : 0}</td>
+                <td>${sub.score || 0}</td>
+                <td>${sub.totalMarks || sub.totalQuestions || 0}</td>
                 <td>${sub.percentage !== undefined ? sub.percentage + '%' : '-'}</td>
             `;
             tableBody.appendChild(row);

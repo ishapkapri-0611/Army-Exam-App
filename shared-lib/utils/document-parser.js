@@ -5,7 +5,7 @@ class DocumentParser {
         console.log('DocumentParser initialized');
     }
 
-    // Parse Users Document with JC543031A format
+    // Parse Users Document with JC543031A or 145699Z format
     async parseUsersDocument(fileBuffer) {
         try {
             console.log('📁 Starting users document parsing...');
@@ -28,7 +28,7 @@ class DocumentParser {
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 try {
-                    // Expected format: JC543031A, John Doe, Captain, Unit 1
+                    // Expected format: JC543031A or 145699Z, John Doe, Captain, Unit 1
                     const parts = line.split(',').map(part => part.trim());
                     
                     if (parts.length >= 3) {
@@ -37,7 +37,7 @@ class DocumentParser {
                         const rank = parts[2].trim();
                         const unit = parts[3] ? parts[3].trim() : 'N/A';
                         
-                        // Validate Army Number format (JC543031A pattern)
+                        // Validate Army Number format (supports both JC543031A and 145699Z patterns)
                         if (this.isValidArmyNumber(armyNumber)) {
                             users.push({
                                 armyNumber: armyNumber,
@@ -67,7 +67,7 @@ class DocumentParser {
         }
     }
 
-    // Enhanced Questions Document Parser with improved MCQ and True/False support
+    // Enhanced Questions Document Parser with improved MCQ, True/False and Image support
     async parseQuestionsDocument(fileBuffer) {
         try {
             console.log('📝 Starting enhanced questions document parsing...');
@@ -76,71 +76,88 @@ class DocumentParser {
                 throw new Error('Empty file buffer provided');
             }
 
-            const result = await mammoth.extractRawText({ buffer: fileBuffer });
-            const text = result.value;
-            
+            // --- Step 1: Extract HTML with embedded base64 images ---
+            const imageMap = new Map();
+            let imageCounter = 0;
+
+            const htmlResult = await mammoth.convertToHtml(
+                { buffer: fileBuffer },
+                {
+                    convertImage: mammoth.images.imgElement(async (image) => {
+                        try {
+                            const imageBuffer = await image.read('base64');
+                            const dataUri = `data:${image.contentType};base64,${imageBuffer}`;
+                            const placeholder = `__IMG_${imageCounter++}__`;
+                            imageMap.set(placeholder, dataUri);
+                            return { src: placeholder };
+                        } catch (imgErr) {
+                            console.warn('⚠️ Could not process image:', imgErr.message);
+                            return { src: '' };
+                        }
+                    })
+                }
+            );
+
+            // --- Step 2: Also extract plain text for line-based parsing ---
+            const textResult = await mammoth.extractRawText({ buffer: fileBuffer });
+            const text = textResult.value;
+
             console.log('📄 Raw text extracted, length:', text.length);
-            
-            // Clean up text and normalize line breaks
+            console.log(`🖼️  Images found in document: ${imageMap.size}`);
+
+            const htmlContent = htmlResult.value;
+            const imagePlaceholders = [];
+            imageMap.forEach((_, placeholder) => {
+                const idx = htmlContent.indexOf(placeholder);
+                if (idx !== -1) imagePlaceholders.push({ placeholder, idx });
+            });
+            imagePlaceholders.sort((a, b) => a.idx - b.idx);
+
+            // --- Step 3: Parse text as before ---
             const cleanedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+            const htmlParagraphs = htmlContent
+                .split(/<\/p>|<\/li>/)
+                .map(p => p.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
+                .filter(p => p.length > 0);
             
-            // Split by multiple newlines to get question blocks, but also handle single line questions
-            const blocks = cleanedText.split(/\n\s*\n/).filter(block => block.trim());
+            // Parse line-by-line — images create empty lines in raw text which break
+            // block-based splitting, so we process each line individually and skip empties
+            const allLines = cleanedText.split('\n').map(line => line.trim());
             const questions = [];
             let currentQuestion = null;
             let questionNumber = 1;
-            
-            console.log(`🔍 Found ${blocks.length} text blocks to process`);
-            
-            // Debug: Show first few blocks
-            console.log('📋 First few blocks preview:');
-            blocks.slice(0, 3).forEach((block, idx) => {
-                console.log(`Block ${idx + 1}:`, block.substring(0, 100) + '...');
-            });
-            
-            // Process each block
-            for (let i = 0; i < blocks.length; i++) {
-                const block = blocks[i];
-                const lines = block.split('\n').map(line => line.trim()).filter(line => line);
-                
-                if (lines.length === 0) continue;
+
+            console.log(`🔍 Found ${allLines.length} lines to process`);
+
+            for (let i = 0; i < allLines.length; i++) {
+                const line = allLines[i];
+                if (!line) continue;
 
                 try {
-                    // Check if this block starts a new question
-                    const firstLine = lines[0];
-                    console.log(`🔍 Checking line: "${firstLine}" - isQuestionLine: ${this.isQuestionLine(firstLine)}`);
-                    
-                    if (this.isQuestionLine(firstLine)) {
-                        // Save previous question if exists
+                    if (this.isQuestionLine(line)) {
                         if (currentQuestion) {
                             this.finalizeQuestion(currentQuestion);
                             questions.push(currentQuestion);
-                            console.log(`✅ Completed question ${currentQuestion.id}: ${currentQuestion.text.substring(0, 50)}...`);
+                            console.log(`✅ Completed Q${currentQuestion.id}: ${currentQuestion.text.substring(0, 50)}...`);
                         }
-                        
-                        // Start new question
-                        currentQuestion = this.createEnhancedQuestionFromLine(firstLine, questionNumber);
+                        currentQuestion = this.createEnhancedQuestionFromLine(line, questionNumber);
                         questionNumber++;
-                        console.log(`🆕 New question detected: ${currentQuestion.text.substring(0, 50)}...`);
-                        
-                        // Process remaining lines in this block
-                        this.processEnhancedQuestionLines(currentQuestion, lines.slice(1));
+                        console.log(`🆕 New question: ${currentQuestion.text.substring(0, 50)}...`);
                     } else if (currentQuestion) {
-                        // Continue processing lines for current question
-                        this.processEnhancedQuestionLines(currentQuestion, lines);
+                        this.processEnhancedQuestionLines(currentQuestion, [line]);
                     }
-                } catch (blockError) {
-                    console.error(`❌ Error processing block ${i + 1}:`, blockError);
+                } catch (lineError) {
+                    console.error(`❌ Error processing line ${i + 1}:`, lineError);
                 }
             }
-            
-            // Don't forget the last question
+
             if (currentQuestion) {
                 this.finalizeQuestion(currentQuestion);
                 questions.push(currentQuestion);
-                console.log(`✅ Completed final question ${currentQuestion.id}`);
+                console.log(`✅ Completed final Q${currentQuestion.id}`);
             }
-            
+
             console.log(`🎉 Successfully parsed ${questions.length} questions`);
             
             // Check if any questions were parsed
@@ -174,7 +191,34 @@ class DocumentParser {
             if (validation.errors.length > 0) {
                 console.warn('⚠️ Validation warnings:', validation.errors);
             }
-            
+
+            // --- Step 4: Assign images to questions ---
+            if (imageMap.size > 0) {
+                const questionParagraphIndex = questions.map(q => {
+                    const searchText = q.rawText ? q.rawText.substring(0, 40).toLowerCase() : '';
+                    const idx = htmlParagraphs.findIndex(p => p.toLowerCase().includes(searchText));
+                    return idx === -1 ? 0 : idx;
+                });
+
+                imagePlaceholders.forEach(({ placeholder }) => {
+                    const dataUri = imageMap.get(placeholder);
+                    if (!dataUri) return;
+                    const paraIdx = htmlParagraphs.findIndex(p => p.includes(placeholder));
+                    let bestQ = null;
+                    let bestDiff = Infinity;
+                    questions.forEach((q, qi) => {
+                        const diff = paraIdx - questionParagraphIndex[qi];
+                        if (diff >= 0 && diff < bestDiff) { bestDiff = diff; bestQ = q; }
+                    });
+                    const target = bestQ || (questions.length > 0 ? questions[questions.length - 1] : null);
+                    if (target) {
+                        if (!target.images) target.images = [];
+                        target.images.push(dataUri);
+                        console.log(`🖼️  Assigned image to question ${target.id}`);
+                    }
+                });
+            }
+
             return questions;
             
         } catch (error) {
@@ -307,20 +351,33 @@ class DocumentParser {
     }
 
     processEnhancedQuestionLines(question, lines) {
+        const autoLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+
         for (const line of lines) {
             const trimmedLine = line.trim();
-            
-            // Check for options (A., B., C., D.) or (True, False)
+            if (!trimmedLine) continue;
+
             if (this.isEnhancedOptionLine(trimmedLine)) {
                 this.processEnhancedOptionLine(question, trimmedLine);
-            }
-            // Check for correct answer specification
-            else if (this.isEnhancedAnswerLine(trimmedLine)) {
+            } else if (this.isEnhancedAnswerLine(trimmedLine)) {
                 this.processEnhancedAnswerLine(question, trimmedLine);
-            }
-            // Check for explanation or additional text
-            else if (this.isExplanationLine(trimmedLine)) {
+            } else if (this.isExplanationLine(trimmedLine)) {
                 this.processExplanationLine(question, trimmedLine);
+            } else if (!this.isQuestionLine(trimmedLine)) {
+                // Bare list item — Word auto-lettered lists lose A/B/C/D in raw text
+                const nextLetter = autoLetters[question.options.length];
+                if (nextLetter && question.options.length < 6) {
+                    const hasExplicitOptions = question.options.some(o => o.explicit);
+                    if (!hasExplicitOptions) {
+                        question.options.push({
+                            letter: nextLetter,
+                            text: trimmedLine,
+                            isCorrect: false,
+                            explicit: false
+                        });
+                        console.log(`📋 Auto-assigned option ${nextLetter}: ${trimmedLine.substring(0, 30)}`);
+                    }
+                }
             }
         }
     }
@@ -375,7 +432,8 @@ class DocumentParser {
         question.options.push({
             letter: optionLetter,
             text: optionText,
-            isCorrect: false // Will be set later if found in answer
+            isCorrect: false,
+            explicit: true
         });
 
         console.log(`📋 Added option ${optionLetter}: ${optionText.substring(0, 30)}...`);
@@ -495,10 +553,14 @@ class DocumentParser {
         }
     }
 
-    // Validate Army Number format (JC543031A pattern)
+    // Validate Army Number format (supports both JC543031A and 145699Z patterns)
     isValidArmyNumber(armyNumber) {
-        const pattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-        return pattern.test(armyNumber);
+        // Pattern 1: Old format - JC543031A (2 letters + 6 digits + optional letter)
+        const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
+        // Pattern 2: New format - 145699Z (variable length digits + letter)
+        const newPattern = /^\d+[A-Z]$/;
+        
+        return oldPattern.test(armyNumber) || newPattern.test(armyNumber);
     }
 
     validateQuestions(questions) {
@@ -610,7 +672,22 @@ class DocumentParser {
             });
 
             const percentage = totalPossibleMarks > 0 ? (obtainedMarks / totalPossibleMarks) * 100 : 0;
-            const status = percentage >= 40 ? 'PASS' : 'FAIL';
+            
+            // Calculate grade based on percentage
+            let grade = 'F';
+            if (percentage >= 80) {
+                grade = 'D';  // 80+ = D
+            } else if (percentage >= 70) {
+                grade = 'A';  // 70-79 = A
+            } else if (percentage >= 60) {
+                grade = 'B';  // 60-69 = B
+            } else if (percentage >= 50) {
+                grade = 'C';  // 50-59 = C
+            } else if (percentage >= 40) {
+                grade = 'E';  // 40-49 = E
+            } else {
+                grade = 'F';  // <40 = F
+            }
 
             const result = {
                 armyNumber: candidate.armyNumber,
@@ -620,7 +697,7 @@ class DocumentParser {
                 totalScore: obtainedMarks,
                 maxMarks: totalPossibleMarks,
                 percentage: percentage.toFixed(2),
-                status: status,
+                status: grade,  // Changed from PASS/FAIL to grade
                 questionsAttempted: questionsAttempted,
                 correctAnswers: correctAnswers,
                 totalQuestions: questions.length,
@@ -637,7 +714,7 @@ class DocumentParser {
         console.log(`\n🎉 Results calculation completed for ${sortedResults.length} candidates`);
         
         // Print summary
-        const passCount = sortedResults.filter(r => r.status === 'PASS').length;
+        const passCount = sortedResults.filter(r => r.status !== 'F').length;  // Count all grades except F
         const averagePercentage = sortedResults.reduce((sum, r) => sum + parseFloat(r.percentage), 0) / sortedResults.length;
         
         console.log(`📊 Summary: ${passCount}/${sortedResults.length} passed, Average: ${averagePercentage.toFixed(2)}%`);
@@ -664,6 +741,20 @@ class DocumentParser {
                 throw new Error('No results data available for export');
             }
 
+            // Define column widths (in DXA units - 1440 DXA = 1 inch)
+            const { WidthType } = docxModule;
+            const columnWidths = [
+                1200,  // Army Number
+                1000,  // Rank
+                2000,  // Name (wider to prevent wrapping)
+                1500,  // Unit (wider to prevent wrapping)
+                800,   // Total Marks
+                800,   // Marks Obtained
+                800,   // Percentage
+                700,   // Status
+                1200   // Date of Exam (wider for longer text)
+            ];
+
             // Create table headers
             const tableRows = [
                 new TableRow({
@@ -674,6 +765,7 @@ class DocumentParser {
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[0], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         }),
                         new TableCell({ 
@@ -682,6 +774,7 @@ class DocumentParser {
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[1], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         }),
                         new TableCell({ 
@@ -690,6 +783,7 @@ class DocumentParser {
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[2], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         }),
                         new TableCell({ 
@@ -698,14 +792,25 @@ class DocumentParser {
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[3], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         }),
                         new TableCell({ 
                             children: [new Paragraph({ 
-                                text: "Score", 
+                                text: "Total Marks", 
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[4], type: WidthType.DXA },
+                            margins: { top: 100, bottom: 100, left: 100, right: 100 }
+                        }),
+                        new TableCell({ 
+                            children: [new Paragraph({ 
+                                text: "Marks Obtained", 
+                                bold: true,
+                                spacing: { before: 100, after: 100 }
+                            })],
+                            width: { size: columnWidths[5], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         }),
                         new TableCell({ 
@@ -714,22 +819,25 @@ class DocumentParser {
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[6], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         }),
                         new TableCell({ 
                             children: [new Paragraph({ 
-                                text: "Status", 
+                                text: "Grade", 
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[7], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         }),
                         new TableCell({ 
                             children: [new Paragraph({ 
-                                text: "Date", 
+                                text: "Date of Exam", 
                                 bold: true,
                                 spacing: { before: 100, after: 100 }
                             })],
+                            width: { size: columnWidths[8], type: WidthType.DXA },
                             margins: { top: 100, bottom: 100, left: 100, right: 100 }
                         })
                     ]
@@ -755,7 +863,8 @@ class DocumentParser {
                     result.rank || 'N/A', 
                     result.name || 'N/A',
                     result.unit || 'N/A',
-                    `${result.totalScore || result.score || 0}/${result.maxMarks || result.totalQuestions || 10}`,
+                    `${result.totalMarks || result.maxMarks || result.totalQuestions || 10}`,  // Total Marks first
+                    `${result.totalScore || result.score || 0}`,  // Marks Obtained second
                     (result.percentage || '0') + '%',
                     result.status || 'N/A',
                     new Date().toLocaleDateString()
@@ -765,12 +874,13 @@ class DocumentParser {
                 
                 tableRows.push(
                     new TableRow({
-                        children: rowData.map(cellText => 
+                        children: rowData.map((cellText, colIndex) => 
                             new TableCell({ 
                                 children: [new Paragraph({ 
                                     text: String(cellText),
                                     spacing: { before: 100, after: 100 }
                                 })],
+                                width: { size: columnWidths[colIndex], type: WidthType.DXA },
                                 margins: {
                                     top: 100,
                                     bottom: 100,
@@ -788,9 +898,12 @@ class DocumentParser {
             // Calculate statistics
             const totalCandidates = results.length;
             const averageScore = results.reduce((sum, r) => sum + parseFloat(r.percentage), 0) / totalCandidates;
-            const passCount = results.filter(r => r.status === 'PASS').length;
+            const passCount = results.filter(r => r.status !== 'F').length;  // Count all grades except F
             const passPercentage = ((passCount / totalCandidates) * 100).toFixed(1);
-            const topper = results[0]; // Highest percentage
+            
+            // Find topper - sort by percentage descending and get first
+            const sortedByPercentage = [...results].sort((a, b) => parseFloat(b.percentage) - parseFloat(a.percentage));
+            const topper = sortedByPercentage[0]; // Highest percentage
 
             // Create document
             const doc = new Document({

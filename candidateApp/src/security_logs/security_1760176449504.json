@@ -1,8 +1,0 @@
-{
-  "type": "CANDIDATE_LOGIN_FAILED",
-  "details": "Failed login attempt for army number: JC543031X",
-  "severity": "MEDIUM",
-  "error": "Invalid Army Number or password",
-  "timestamp": "2025-10-11T09:54:09.504Z",
-  "sessionId": 1
-}

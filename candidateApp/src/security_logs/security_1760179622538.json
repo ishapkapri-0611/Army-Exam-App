@@ -1,8 +1,0 @@
-{
-  "type": "EXAM_SUBMITTED",
-  "details": "Exam submitted successfully for JC543031A",
-  "severity": "INFO",
-  "answersCount": 5,
-  "timestamp": "2025-10-11T10:47:02.538Z",
-  "sessionId": 1
-}
