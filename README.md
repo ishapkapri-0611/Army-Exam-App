@@ -69,7 +69,7 @@ army-examination-system/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ishapkapri-0611/army-examination-system.git
+   git clone https://github.com/ishapkapri/army-examination-system.git
    cd army-examination-system
    ```
 
@@ -207,6 +207,7 @@ npm run dev
 
 ### Business Inquiries
 - **Email**: kaprisoftware.pvt.ltd@gmail.com
+- **Website**: https://kaprisoftware.com
 
 ---
 

@@ -1,7 +1,0 @@
-{
-  "type": "WEBSOCKET_DISCONNECTED",
-  "details": "Disconnected from server: io client disconnect",
-  "severity": "HIGH",
-  "timestamp": "2025-10-11T05:20:06.414Z",
-  "sessionId": 1
-}

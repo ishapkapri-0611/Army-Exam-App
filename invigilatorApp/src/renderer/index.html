@@ -719,7 +719,7 @@
                             <div class="upload-icon">👥</div>
                             <div>
                                 <div style="font-weight: 600; margin-bottom: 4px;">Candidates List</div>
-                                <div class="upload-info">Upload DOCX file with format: JC543031A, Name, Rank, Unit</div>
+                                <div class="upload-info">Upload DOCX file with format: JC543031A or 145699Z, Name, Rank, Unit</div>
                             </div>
                         </div>
                         <button class="btn btn-secondary" onclick="uploadUsersFile()" id="usersBtn">
@@ -1136,8 +1136,14 @@
                         this.connectedCandidates.clear();
                         
                         // Add real candidates from submissions
+                        // Get total questions from summary if available
+                        const totalQuestionsFromSummary = data.summary?.totalQuestions || 0;
+                        
                         data.submissions.forEach(submission => {
-                            const progress = Math.round((submission.answers.length / submission.totalQuestions) * 100);
+                            // Use submission's totalQuestions, or fall back to summary, or count answers
+                            const totalQuestions = submission.totalQuestions || totalQuestionsFromSummary || submission.answers.length;
+                            const answeredCount = submission.answers.length;
+                            const progress = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
                             
                             this.connectedCandidates.set(submission.candidateId, {
                                 armyNumber: submission.armyNumber,
@@ -1145,8 +1151,9 @@
                                 rank: submission.rank,
                                 unit: submission.unit,
                                 progress: progress,
+                                answeredCount: answeredCount,
                                 score: submission.score,
-                                totalQuestions: submission.totalQuestions,
+                                totalQuestions: totalQuestions,
                                 percentage: submission.percentage,
                                 status: progress === 100 ? 'completed' : 'active',
                                 submittedAt: submission.submittedAt
@@ -1210,7 +1217,7 @@
                             <div style="font-size: 0.8em; color: #a0aec0;">${candidate.rank || 'N/A'} • ${candidate.unit || 'N/A'}</div>
                         </td>
                         <td class="progress-cell">
-                            <div>${candidate.progress}% (${candidate.score || 0}/${candidate.totalQuestions || 5})</div>
+                            <div>${candidate.progress}% (${candidate.answeredCount || candidate.score || 0}/${candidate.totalQuestions || 0})</div>
                             <div class="progress-mini">
                                 <div class="progress-mini-fill" style="width: ${candidate.progress}%"></div>
                             </div>

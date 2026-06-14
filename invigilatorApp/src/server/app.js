@@ -29,15 +29,7 @@ class ExamServer {
         this.answersFilePath = path.join(__dirname, '../../results/all_answers.json');
         this.dataDir = path.join(__dirname, 'data');
 
-        // Ensure data directory exists
-        if (!fs.existsSync(this.dataDir)) {
-            fs.mkdirSync(this.dataDir, { recursive: true });
-            console.log(`📁 Created data directory: ${this.dataDir}`);
-        }
-
-        // Load existing data from disk on startup
-        this.loadDataFromDisk();
-
+        // Defer heavy initialization until server actually starts
         this.setupMiddleware();
         this.setupRoutes();
         this.setupSocketHandlers();
@@ -119,12 +111,14 @@ class ExamServer {
         this.app.get('/api/submissions', (req, res) => {
             try {
                 const submissions = this.getSubmissions();
+                // Get actual total questions from submissions if available
+                const actualTotalQuestions = submissions.length > 0 ? submissions[0].totalQuestions : this.examData.questions.length;
                 res.json({
                     success: true,
                     submissions: submissions,
                     summary: {
                         totalSubmissions: submissions.length,
-                        totalQuestions: this.examData.questions.length,
+                        totalQuestions: actualTotalQuestions,
                         totalCandidates: this.examData.users.length
                     }
                 });
@@ -146,11 +140,15 @@ class ExamServer {
                         message: 'Invigilator login successful'
                     });
                 }
-                const armyNumberPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-                if (!armyNumberPattern.test(armyNumber)) {
+                // Support both old format (JC543031A) and new format (145699Z)
+                const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
+                const newPattern = /^\d+[A-Z]$/;
+                const isValidFormat = oldPattern.test(armyNumber) || newPattern.test(armyNumber);
+                
+                if (!isValidFormat) {
                     return res.json({
                         success: false,
-                        error: 'Invalid Army Number format (expected format: JC543031A)'
+                        error: 'Invalid Army Number format (expected format: JC543031A or 145699Z)'
                     });
                 }
                 console.log('Current users in examData:', this.examData.users);
@@ -229,6 +227,12 @@ class ExamServer {
                 if (questions && Array.isArray(questions)) {
                     this.examData.questions = questions;
                     console.log(`Uploaded ${questions.length} questions`);
+                    
+                    // Debug: Log each question's marks
+                    console.log('📋 Question marks breakdown:');
+                    questions.forEach(q => {
+                        console.log(`  Q${q.id}: marks = ${q.marks || 0}`);
+                    });
 
                     // Save to disk for persistence
                     const questionsFilePath = path.join(this.dataDir, 'questions.json');
@@ -237,7 +241,7 @@ class ExamServer {
 
                     const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 0), 0);
                     console.log(`📊 Total marks: ${totalMarks}`);
-                    res.json({ success: true, count: questions.length });
+                    res.json({ success: true, count: questions.length, totalMarks: totalMarks });
                 } else {
                     res.status(400).json({ success: false, error: 'Invalid questions data' });
                 }
@@ -249,7 +253,9 @@ class ExamServer {
         // Enhanced /api/submit-exam with flexible data handling
         this.app.post('/api/submit-exam', (req, res) => {
             console.log('--- /api/submit-exam called ---');
+            console.log('Questions loaded in examData:', this.examData.questions ? this.examData.questions.length : 0);
             console.log('Received body:', JSON.stringify(req.body, null, 2));
+            
             try {
                 const examData = req.body.examData || req.body;
 
@@ -317,19 +323,64 @@ class ExamServer {
                 });
 
                 // Save all answers to file
-                const answersArray = Array.from(this.examData.answers.values());
-                fs.writeFileSync(this.answersFilePath, JSON.stringify(answersArray, null, 2));
+                try {
+                    const answersArray = Array.from(this.examData.answers.values());
+                    fs.writeFileSync(this.answersFilePath, JSON.stringify(answersArray, null, 2));
+                    console.log(`💾 Saved ${answersArray.length} total answers to file`);
+                } catch (fileError) {
+                    console.error('⚠️ Failed to save answers to file:', fileError.message);
+                    // Continue anyway - answers are in memory
+                }
 
                 console.log(`✅ Stored ${answersToProcess.length} answers for ${armyNumber}`);
+
+                // Calculate individual result immediately after submission
+                let individualResult = null;
+                try {
+                    // Check if questions are available before calculating
+                    if (!this.examData.questions || this.examData.questions.length === 0) {
+                        console.warn('⚠️ No questions loaded - cannot calculate result yet');
+                        individualResult = {
+                            message: 'Answers submitted successfully. Results will be calculated by invigilator.',
+                            status: 'SUBMITTED',
+                            answersCount: answersToProcess.length
+                        };
+                    } else {
+                        const candidateSubmission = {
+                            candidateId: armyNumber,
+                            submittedAt: examData.submittedAt || new Date(),
+                            timeTaken: examData.timeTaken || 'N/A'
+                        };
+
+                        individualResult = this.calculateIndividualResult(candidateSubmission);
+                        console.log('✅ Result calculated successfully');
+                    }
+                } catch (resultError) {
+                    console.error('⚠️ Failed to calculate result, but answers are saved:', resultError.message);
+                    console.error('Result error stack:', resultError.stack);
+                    // Don't fail the submission if result calculation fails
+                    individualResult = {
+                        message: 'Answers submitted successfully. Results will be calculated by invigilator.',
+                        status: 'SUBMITTED',
+                        answersCount: answersToProcess.length
+                    };
+                }
+
                 res.json({
                     success: true,
                     message: 'Exam submitted successfully',
                     answersCount: answersToProcess.length,
-                    candidateId: armyNumber
+                    candidateId: armyNumber,
+                    result: individualResult
                 });
             } catch (error) {
-                console.error('Exam submission error:', error);
-                res.status(500).json({ success: false, error: 'Internal server error' });
+                console.error('❌ Exam submission error:', error);
+                console.error('Error stack:', error.stack);
+                console.error('Request body:', JSON.stringify(req.body, null, 2));
+                res.status(500).json({ 
+                    success: false, 
+                    error: 'Internal server error: ' + error.message 
+                });
             }
         });
 
@@ -343,6 +394,49 @@ class ExamServer {
             }
         });
 
+        // Get individual candidate result by army number
+        this.app.get('/api/candidate-result/:armyNumber', (req, res) => {
+            try {
+                const { armyNumber } = req.params;
+                console.log(`📊 Getting result for candidate: ${armyNumber}`);
+
+                // Find candidate's submissions (there will be multiple entries, one per question)
+                const candidateAnswers = Array.from(this.examData.answers.values())
+                    .filter(answer => answer.candidateId === armyNumber);
+
+                if (candidateAnswers.length === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'No submission found for this army number'
+                    });
+                }
+
+                // Create a submission object for the calculation
+                const candidateSubmission = {
+                    candidateId: armyNumber,
+                    submittedAt: candidateAnswers[0].timestamp,
+                    timeTaken: 'N/A' // We can calculate this later if needed
+                };
+
+                // Calculate individual result
+                const result = this.calculateIndividualResult(candidateSubmission);
+
+                console.log(`✅ Result calculated for ${armyNumber}:`, result);
+
+                res.json({
+                    success: true,
+                    result: result
+                });
+
+            } catch (error) {
+                console.error('❌ Error getting candidate result:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+        });
+
         // Debug endpoint to check questions in memory
         this.app.get('/api/debug/questions', (req, res) => {
             try {
@@ -350,6 +444,47 @@ class ExamServer {
                     success: true,
                     questions: this.examData.questions,
                     count: this.examData.questions.length
+                });
+            } catch (error) {
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        // Debug endpoint to check answers in memory
+        this.app.get('/api/debug/answers', (req, res) => {
+            try {
+                const answersArray = Array.from(this.examData.answers.entries());
+                res.json({
+                    success: true,
+                    answers: answersArray,
+                    answersCount: answersArray.length,
+                    keys: Array.from(this.examData.answers.keys())
+                });
+            } catch (error) {
+                res.status(500).json({ success: false, error: error.message });
+            }
+        });
+
+        // Debug endpoint to see raw answer data
+        this.app.get('/api/debug/raw-answers/:armyNumber', (req, res) => {
+            try {
+                const { armyNumber } = req.params;
+                const candidateAnswers = Array.from(this.examData.answers.values())
+                    .filter(answer => answer.candidateId === armyNumber);
+                
+                const questionsData = this.examData.questions.map(q => ({
+                    id: q.id,
+                    correctAnswer: q.correctAnswer,
+                    marks: q.marks,
+                    text: q.text ? q.text.substring(0, 50) + '...' : 'N/A'
+                }));
+                
+                res.json({
+                    success: true,
+                    candidateAnswers: candidateAnswers,
+                    questions: questionsData,
+                    answersCount: candidateAnswers.length,
+                    questionsCount: this.examData.questions.length
                 });
             } catch (error) {
                 res.status(500).json({ success: false, error: error.message });
@@ -575,76 +710,145 @@ class ExamServer {
     getSubmissions() {
         console.log('Retrieving all submissions with candidate data');
 
-        const submissions = new Map();
+        try {
+            const submissions = new Map();
+            
+            // Track the maximum question ID seen across all answers to determine actual total questions
+            let maxQuestionId = -1;
 
-        // Process all answers
-        for (const [key, value] of this.examData.answers.entries()) {
-            const { candidateId, questionId, selectedAnswer, timestamp } = value;
+            // Safety check
+            if (!this.examData || !this.examData.answers) {
+                console.warn('⚠️ No answers data available');
+                return [];
+            }
 
-            if (!submissions.has(candidateId)) {
-                // Find candidate details from uploaded users
-                const candidate = this.examData.users.find(user => user.armyNumber === candidateId);
+            // Process all answers
+            for (const [key, value] of this.examData.answers.entries()) {
+                try {
+                    const { candidateId, questionId, selectedAnswer, timestamp } = value;
+                    
+                    // Track max question ID
+                    if (questionId > maxQuestionId) {
+                        maxQuestionId = questionId;
+                    }
 
-                submissions.set(candidateId, {
-                    candidateId: candidateId,
-                    name: candidate ? candidate.name : 'Unknown',
-                    rank: candidate ? candidate.rank : 'N/A',
-                    unit: candidate ? candidate.unit : 'N/A',
-                    armyNumber: candidateId,
-                    answers: [],
+                    if (!submissions.has(candidateId)) {
+                        // Find candidate details from uploaded users
+                        const candidate = this.examData.users ? 
+                            this.examData.users.find(user => user.armyNumber === candidateId) : 
+                            null;
+
+                        submissions.set(candidateId, {
+                            candidateId: candidateId,
+                            name: candidate ? candidate.name : 'Unknown',
+                            rank: candidate ? candidate.rank : 'N/A',
+                            unit: candidate ? candidate.unit : 'N/A',
+                            armyNumber: candidateId,
+                            answers: [],
                     score: 0,
-                    totalQuestions: this.examData.questions.length,
+                    totalQuestions: 0, // Will be set after processing all answers
                     submittedAt: timestamp
                 });
             }
 
-            submissions.get(candidateId).answers.push({
-                questionId: questionId,
-                selectedAnswer: selectedAnswer,
-                timestamp: timestamp
-            });
-        }
+                    submissions.get(candidateId).answers.push({
+                        questionId: questionId,
+                        selectedAnswer: selectedAnswer,
+                        timestamp: timestamp
+                    });
+                } catch (answerError) {
+                    console.error('Error processing answer:', answerError);
+                }
+            }
+            
+            // Determine actual total questions: use the larger of loaded questions or max question ID + 1
+            const loadedQuestionsCount = this.examData.questions ? this.examData.questions.length : 0;
+            const actualTotalQuestions = Math.max(loadedQuestionsCount, maxQuestionId + 1);
+            
+            console.log(`📊 Total questions determination:`);
+            console.log(`   - Loaded questions: ${loadedQuestionsCount}`);
+            console.log(`   - Max question ID seen: ${maxQuestionId}`);
+            console.log(`   - Using total questions: ${actualTotalQuestions}`);
 
-        // Calculate scores for each submission
-        const submissionsArray = Array.from(submissions.values());
+            // Calculate scores for each submission
+            const submissionsArray = Array.from(submissions.values());
 
-        submissionsArray.forEach(submission => {
-            let correctAnswers = 0;
+            submissionsArray.forEach(submission => {
+                try {
+                    let totalMarksObtained = 0;
+                    let totalMarksAvailable = 0;
+                    
+                    // Safety check for questions
+                    if (this.examData.questions && Array.isArray(this.examData.questions)) {
+                        try {
+                            totalMarksAvailable = this.examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+                        } catch (reduceError) {
+                            console.error('Error calculating total marks:', reduceError);
+                            totalMarksAvailable = 0;
+                        }
+                    }
+                    
+                    // Set the actual total questions for this submission
+                    submission.totalQuestions = actualTotalQuestions;
 
-            console.log(`🔍 Calculating score for ${submission.candidateId}:`);
-            console.log(`📋 Available questions in memory: ${this.examData.questions.length}`);
-            this.examData.questions.forEach(q => {
-                console.log(`  Q${q.id}: Correct answer = ${q.correctAnswer}`);
-            });
+                    console.log(`🔍 Calculating score for ${submission.candidateId}:`);
+                    console.log(`📋 Available questions in memory: ${loadedQuestionsCount}`);
+                    console.log(`📊 Total marks available: ${totalMarksAvailable}`);
+                    
+                    if (this.examData.questions && Array.isArray(this.examData.questions)) {
+                        this.examData.questions.forEach(q => {
+                            console.log(`  Q${q.id}: Correct answer = ${q.correctAnswer}, Marks = ${q.marks || 0}`);
+                        });
 
-            submission.answers.forEach(answer => {
-                // Always map 0-based answer IDs to 1-based server question IDs
-                // Since server questions are always 1,2,3,4,5 and answers are 0,1,2,3,4
-                const mappedQuestionId = answer.questionId + 1;
-                const question = this.examData.questions.find(q => q.id === mappedQuestionId);
+                        submission.answers.forEach(answer => {
+                            try {
+                                // Always map 0-based answer IDs to 1-based server question IDs
+                                // Since server questions are always 1,2,3,4,5 and answers are 0,1,2,3,4
+                                const mappedQuestionId = answer.questionId + 1;
+                                const question = this.examData.questions.find(q => q.id === mappedQuestionId);
 
-                const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
-                console.log(`  📝 Q${answer.questionId}→Q${mappedQuestionId}: Selected=${answer.selectedAnswer}, Correct=${question ? question.correctAnswer : 'NOT FOUND'}, Match=${isCorrect ? '✅' : '❌'}`);
+                                const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
+                                const marksForThisQuestion = question ? (question.marks || 0) : 0;
 
-                if (isCorrect) {
-                    correctAnswers++;
+                                console.log(`  📝 Q${answer.questionId}→Q${mappedQuestionId}: Selected=${answer.selectedAnswer}, Correct=${question ? question.correctAnswer : 'NOT FOUND'}, Match=${isCorrect ? '✅' : '❌'}, Marks=${marksForThisQuestion}`);
+
+                                if (isCorrect) {
+                                    totalMarksObtained += marksForThisQuestion;
+                                }
+                            } catch (answerCalcError) {
+                                console.error(`Error calculating answer for Q${answer.questionId}:`, answerCalcError);
+                            }
+                        });
+                    } else {
+                        console.warn('⚠️ No questions available for scoring');
+                    }
+
+                    console.log(`✅ Final score for ${submission.candidateId}: ${totalMarksObtained}/${totalMarksAvailable} marks`);
+
+                    submission.score = totalMarksObtained;
+                    submission.totalMarks = totalMarksAvailable;
+                    submission.percentage = totalMarksAvailable > 0
+                        ? ((totalMarksObtained / totalMarksAvailable) * 100).toFixed(2)
+                        : 0;
+                } catch (submissionError) {
+                    console.error(`Error calculating submission for ${submission.candidateId}:`, submissionError);
+                    submission.score = 0;
+                    submission.totalMarks = 0;
+                    submission.percentage = 0;
                 }
             });
 
-            console.log(`✅ Final score for ${submission.candidateId}: ${correctAnswers}/${submission.totalQuestions}`);
-
-            submission.score = correctAnswers;
-            submission.percentage = submission.totalQuestions > 0
-                ? ((correctAnswers / submission.totalQuestions) * 100).toFixed(2)
-                : 0;
-        });
-
-        console.log(`Found ${submissionsArray.length} submissions with scores`);
-        return submissionsArray;
+            console.log(`Found ${submissionsArray.length} submissions with scores`);
+            return submissionsArray;
+        } catch (error) {
+            console.error('❌ Critical error in getSubmissions:', error);
+            console.error('Error stack:', error.stack);
+            return [];
+        }
     }
 
     generateCSV(submissions) {
-        const headers = ['Army Number', 'Name', 'Rank', 'Unit', 'Score', 'Total Questions', 'Percentage', 'Submission Time'];
+        const headers = ['Army Number', 'Name', 'Rank', 'Unit', 'Marks Obtained', 'Total Marks', 'Total Questions', 'Percentage', 'Submission Time'];
         let csv = headers.join(',') + '\n';
 
         submissions.forEach(submission => {
@@ -654,6 +858,7 @@ class ExamServer {
                 `"${submission.rank}"`,
                 `"${submission.unit}"`,
                 submission.score,
+                submission.totalMarks || submission.totalQuestions,
                 submission.totalQuestions,
                 submission.percentage,
                 `"${new Date(submission.submittedAt).toLocaleString()}"`
@@ -665,13 +870,30 @@ class ExamServer {
     }
 
     startExam(questions, duration = 60) {
-        if (questions && Array.isArray(questions)) {
+        console.log(`📋 startExam called with ${questions ? questions.length : 0} questions`);
+        
+        if (questions && Array.isArray(questions) && questions.length > 0) {
             this.examData.questions = questions;
+            console.log(`📝 Loaded ${questions.length} questions into examData`);
+            console.log('First question:', questions[0]);
+            
+            // Save questions to disk for persistence
+            try {
+                const questionsFilePath = path.join(this.dataDir, 'questions.json');
+                fs.writeFileSync(questionsFilePath, JSON.stringify(questions, null, 2));
+                console.log(`💾 Questions saved to disk: ${questionsFilePath}`);
+            } catch (err) {
+                console.error('❌ Failed to save questions to disk:', err);
+            }
+        } else {
+            console.error('⚠️ No questions provided to startExam or invalid format!');
+            console.error('Questions received:', questions);
         }
+        
         this.examData.startTime = new Date();
         this.examData.duration = duration;
 
-        console.log(`🚀 Exam started! Duration: ${duration} minutes`);
+        console.log(`🚀 Exam started! Duration: ${duration} minutes, Questions in memory: ${this.examData.questions.length}`);
 
         const examPayload = {
             questions: this.examData.questions,
@@ -709,6 +931,12 @@ class ExamServer {
                 reject(new Error('Server is already running'));
                 return;
             }
+
+            // Initialize data directory and load data only when server starts
+            if (!fs.existsSync(this.dataDir)) {
+                fs.mkdirSync(this.dataDir, { recursive: true });
+            }
+            this.loadDataFromDisk();
 
             this.server.listen(this.port, (err) => {
                 if (err) {
@@ -769,6 +997,142 @@ class ExamServer {
             uptime: this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0,
             examStarted: !!this.examData.startTime
         };
+    }
+
+    calculateIndividualResult(candidateSubmission) {
+        console.log(`🧮 Calculating individual result for: ${candidateSubmission.candidateId}`);
+
+        try {
+            // Safety check: ensure questions are loaded
+            if (!this.examData || !this.examData.questions || this.examData.questions.length === 0) {
+                console.error('❌ No questions loaded in examData');
+                return {
+                    armyNumber: candidateSubmission.candidateId,
+                    name: 'Candidate',
+                    rank: 'N/A',
+                    unit: 'N/A',
+                    score: 0,
+                    totalMarks: 0,
+                    totalQuestions: 0,
+                    percentage: 0,
+                    status: 'SUBMITTED',
+                    submittedAt: candidateSubmission.submittedAt || new Date(),
+                    timeTaken: candidateSubmission.timeTaken || 'N/A',
+                    message: 'Your answers have been submitted successfully. Results will be calculated by the invigilator.'
+                };
+            }
+
+            // Find candidate details from uploaded users
+            const candidate = this.examData.users ? 
+                this.examData.users.find(user => user.armyNumber === candidateSubmission.candidateId) : 
+                null;
+
+            // Get all answers for this candidate
+            const candidateAnswers = this.examData.answers ? 
+                Array.from(this.examData.answers.values()).filter(answer => answer.candidateId === candidateSubmission.candidateId) :
+                [];
+
+            let totalMarksObtained = 0;
+            let totalMarksAvailable = 0;
+            let totalQuestions = 0;
+
+            try {
+                totalMarksAvailable = this.examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
+                totalQuestions = this.examData.questions.length;
+            } catch (reduceError) {
+                console.error('Error calculating total marks:', reduceError);
+                totalMarksAvailable = 0;
+                totalQuestions = 0;
+            }
+
+            console.log(`📋 Processing ${candidateAnswers.length} answers for ${candidateSubmission.candidateId}`);
+            console.log(`📊 Total marks available: ${totalMarksAvailable}`);
+
+            candidateAnswers.forEach(answer => {
+                try {
+                    // Client sends 0-based IDs (0,1,2,3,4), server has 1-based IDs (1,2,3,4,5)
+                    // Always add 1 to map correctly
+                    const mappedQuestionId = parseInt(answer.questionId) + 1;
+                    const question = this.examData.questions.find(q => q.id === mappedQuestionId);
+
+                    if (!question) {
+                        console.warn(`  ⚠️ Question not found: Client ID ${answer.questionId} → Server ID ${mappedQuestionId}`);
+                        console.warn(`  Available question IDs:`, this.examData.questions.map(q => q.id));
+                        return;
+                    }
+
+                    // Normalize answers for comparison (trim and convert to uppercase)
+                    const normalizedCorrectAnswer = String(question.correctAnswer || '').trim().toUpperCase();
+                    const normalizedSelectedAnswer = String(answer.selectedAnswer || '').trim().toUpperCase();
+                    const isCorrect = normalizedCorrectAnswer === normalizedSelectedAnswer;
+                    const marksForThisQuestion = question.marks || 0;
+
+                    console.log(`  📝 Q${answer.questionId}→Q${mappedQuestionId}: Selected="${answer.selectedAnswer}" (normalized: "${normalizedSelectedAnswer}"), Correct="${question.correctAnswer}" (normalized: "${normalizedCorrectAnswer}"), Match=${isCorrect ? '✅' : '❌'}, Marks=${marksForThisQuestion}`);
+
+                    if (isCorrect) {
+                        totalMarksObtained += marksForThisQuestion;
+                    }
+                } catch (answerError) {
+                    console.error(`Error processing answer for question ${answer.questionId}:`, answerError);
+                }
+            });
+
+            const percentage = totalMarksAvailable > 0 ? (totalMarksObtained / totalMarksAvailable) * 100 : 0;
+            const timeTaken = candidateSubmission.timeTaken || 'N/A';
+
+            // Calculate grade based on percentage
+            let grade = 'F';
+            if (percentage >= 80) {
+                grade = 'D';  // 80+ = D (Excellent)
+            } else if (percentage >= 70) {
+                grade = 'A';  // 70-79 = A (Very Good)
+            } else if (percentage >= 60) {
+                grade = 'B';  // 60-69 = B (Good)
+            } else if (percentage >= 50) {
+                grade = 'C';  // 50-59 = C (Average)
+            } else if (percentage >= 40) {
+                grade = 'E';  // 40-49 = E (Pass)
+            } else {
+                grade = 'F';  // <40 = F (Fail)
+            }
+
+            const result = {
+                armyNumber: candidateSubmission.candidateId,
+                name: candidate ? candidate.name : 'Unknown',
+                rank: candidate ? candidate.rank : 'N/A',
+                unit: candidate ? candidate.unit : 'N/A',
+                score: totalMarksObtained,
+                totalMarks: totalMarksAvailable,
+                totalQuestions: totalQuestions,
+                percentage: parseFloat(percentage.toFixed(2)),
+                status: grade,  // Changed from PASS/FAIL to grade
+                submittedAt: candidateSubmission.submittedAt || candidateSubmission.timestamp,
+                timeTaken: timeTaken
+            };
+
+            console.log(`✅ Individual result calculated:`, result);
+            return result;
+        } catch (error) {
+            console.error('❌ Critical error in calculateIndividualResult:', error);
+            console.error('Error stack:', error.stack);
+            
+            // Return a safe fallback result
+            return {
+                armyNumber: candidateSubmission.candidateId,
+                name: 'Candidate',
+                rank: 'N/A',
+                unit: 'N/A',
+                score: 0,
+                totalMarks: 0,
+                totalQuestions: 0,
+                percentage: 0,
+                status: 'ERROR',
+                submittedAt: candidateSubmission.submittedAt || new Date(),
+                timeTaken: candidateSubmission.timeTaken || 'N/A',
+                message: 'Error calculating result. Please contact the invigilator.',
+                error: error.message
+            };
+        }
     }
 }
 

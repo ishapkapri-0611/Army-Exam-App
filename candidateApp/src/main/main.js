@@ -1,8 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, screen } = require('electron');
 const path = require('path');
-const NetworkDiscovery = require('../../../shared-lib/utils/network-discovery');
 const fs = require('fs');
 const { io } = require('socket.io-client');
+const NetworkDiscovery = require('../../shared-lib/utils/network-discovery');
 
 let mainWindow;
 let networkDiscovery;
@@ -30,25 +30,29 @@ function createWindow() {
             allowRunningInsecureContent: false,
             enableRemoteModule: false,
             nodeIntegrationInWorker: false,
-            nodeIntegrationInSubFrames: false
+            nodeIntegrationInSubFrames: false,
+            spellcheck: false,
+            enableWebSQL: false,
+            v8CacheOptions: 'code'
         },
         icon: path.join(__dirname, '../../assets/icon.png'),
         title: 'Army Exam Candidate - Secure Browser',
         fullscreen: true,
-        kiosk: true, // Additional kiosk mode for maximum security
+        kiosk: true,
         resizable: false,
         minimizable: false,
         maximizable: false,
-        closable: false, // Prevent closing during exam
+        closable: false,
         alwaysOnTop: true,
+        backgroundColor: '#1a202c',
         show: false,
-        titleBarStyle: 'hidden', // Hide title bar
-        frame: false // Remove window frame
+        titleBarStyle: 'hidden',
+        frame: false
     });
 
     // Enhanced security measures
     mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
-        const allowedUrls = ['exam-page.html', 'index.html', 'loading.html'];
+        const allowedUrls = ['exam-page.html', 'index.html', 'loading.html', 'result-page.html', 'test-result.html'];
         const isAllowed = allowedUrls.some(url => navigationUrl.endsWith(url));
         
         if (!isAllowed) {
@@ -249,12 +253,15 @@ ipcMain.handle('candidate-login', async (event, loginData) => {
             };
         }
 
-        // Validate army number format
-        const armyNumberPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-        if (!armyNumberPattern.test(loginData.armyNumber)) {
+        // Validate army number format (support both old and new formats)
+        const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
+        const newPattern = /^\d+[A-Z]$/;
+        const isValid = oldPattern.test(loginData.armyNumber) || newPattern.test(loginData.armyNumber);
+        
+        if (!isValid) {
             return { 
                 success: false, 
-                error: 'Invalid Army Number format. Expected format: JC543031A' 
+                error: 'Invalid Army Number format. Expected format: JC543031A or 145699Z' 
             };
         }
 
@@ -611,6 +618,12 @@ if (!gotTheLock) {
         }
     });
 }
+
+// Optimize Electron for faster startup
+app.commandLine.appendSwitch('disable-http-cache');
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('no-sandbox');
 
 // Application event handlers
 app.whenReady().then(() => {

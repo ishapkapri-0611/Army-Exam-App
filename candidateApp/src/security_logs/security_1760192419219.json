@@ -1,8 +1,0 @@
-{
-  "type": "CANDIDATE_LOGIN_FAILED",
-  "details": "Failed login attempt for army number: HV543031B",
-  "severity": "MEDIUM",
-  "error": "Invalid Army Number or password",
-  "timestamp": "2025-10-11T14:20:19.219Z",
-  "sessionId": 1
-}

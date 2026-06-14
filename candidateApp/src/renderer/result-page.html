@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Army Exam - Your Result</title>
+    <style>
+        :root {
+            --army-dark: #1e3c72;
+            --army-medium: #2a5298;
+            --army-light: #4a90e2;
+            --success: #27ae60;
+            --warning: #e74c3c;
+            --gold: #ff6b35;
+            --silver: #95a5a6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--army-dark) 0%, var(--army-medium) 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .result-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: var(--gold);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header .emblem {
+            font-size: 3em;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        .candidate-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .candidate-info h2 {
+            color: var(--gold);
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .info-value {
+            font-weight: bold;
+            color: white;
+        }
+        
+        .result-summary {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
+            font-weight: bold;
+            position: relative;
+            background: conic-gradient(var(--success) 0deg, var(--success) var(--score-angle, 0deg), rgba(255,255,255,0.2) var(--score-angle, 0deg));
+        }
+        
+        .score-circle::before {
+            content: '';
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: var(--army-medium);
+            border-radius: 50%;
+            z-index: 1;
+        }
+        
+        .score-text {
+            position: relative;
+            z-index: 2;
+            color: white;
+        }
+        
+        .result-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .detail-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .detail-label {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin: 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .status-pass {
+            background: linear-gradient(135deg, var(--success), #2ecc71);
+            color: white;
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+        
+        .status-fail {
+            background: linear-gradient(135deg, var(--warning), #c0392b);
+            color: white;
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        .performance-message {
+            font-size: 1.1em;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid var(--gold);
+        }
+        
+        .action-buttons {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--army-light), var(--army-medium));
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            color: #ff6b6b;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .result-container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .result-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="result-container">
+        <div class="header">
+            <span class="emblem">🇮🇳</span>
+            <h1>Exam Result</h1>
+        </div>
+        
+        <div id="loadingSection" class="loading">
+            <div class="spinner"></div>
+            <span>Calculating your result...</span>
+        </div>
+        
+        <div id="errorSection" class="error-message" style="display: none;">
+            <h3>Unable to Load Result</h3>
+            <p id="errorMessage">There was an error loading your result. Please contact the invigilator.</p>
+        </div>
+        
+        <div id="resultSection" style="display: none;">
+            <div class="candidate-info">
+                <h2>Candidate Information</h2>
+                <div class="info-row">
+                    <span class="info-label">Army Number:</span>
+                    <span class="info-value" id="displayArmyNumber">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value" id="displayName">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Rank:</span>
+                    <span class="info-value" id="displayRank">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Unit:</span>
+                    <span class="info-value" id="displayUnit">-</span>
+                </div>
+            </div>
+            
+            <div class="result-summary">
+                <div class="score-circle" id="scoreCircle">
+                    <div class="score-text" id="scoreText">--%</div>
+                </div>
+                
+                <div class="result-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Marks Obtained</div>
+                        <div class="detail-value" id="scoreValue">- / - marks</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Percentage</div>
+                        <div class="detail-value" id="percentageValue">--%</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Total Questions</div>
+                        <div class="detail-value" id="totalQuestions">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Time Taken</div>
+                        <div class="detail-value" id="timeTaken">--:--</div>
+                    </div>
+                </div>
+                
+                <div class="status-badge" id="statusBadge">
+                    Calculating...
+                </div>
+                
+                <div class="performance-message" id="performanceMessage">
+                    Your result is being processed...
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="closeApplication()">Close Application</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Army Examination System | Developed by Ishap Kapri for Indian Army</p>
+            <p>© 2025 Kapri Software Pvt Ltd. All rights reserved.</p>
+        </div>
+    </div>
+
+    <script src="result-controller.js"></script>
+    <script>
+        // Initialize result display when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const resultController = new ResultController();
+            resultController.loadResult();
+        });
+        
+        function closeApplication() {
+            if (window.electronAPI && window.electronAPI.closeApp) {
+                window.electronAPI.closeApp();
+            } else {
+                window.close();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -47,7 +47,11 @@ function setupInputValidation() {
             e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
             
             // Enable/disable login button based on input
-            const isValid = e.target.value.match(/^[A-Z]{2}\d{6}[A-Z]?$/);
+            // Support both old format (JC543031A) and new format (145699Z)
+            const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
+            const newPattern = /^\d+[A-Z]$/;
+            const isValid = oldPattern.test(e.target.value) || newPattern.test(e.target.value);
+            
             if (loginBtn) {
                 loginBtn.disabled = !isValid || !serverInfo;
             }
@@ -137,8 +141,13 @@ async function refreshServerSearch() {
             }
             
             // Enable login button if army number is valid
-            if (armyNumberInput && armyNumberInput.value.match(/^[A-Z]{2}\d{6}[A-Z]?$/)) {
-                if (loginBtn) loginBtn.disabled = false;
+            if (armyNumberInput) {
+                const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
+                const newPattern = /^\d+[A-Z]$/;
+                const isValid = oldPattern.test(armyNumberInput.value) || newPattern.test(armyNumberInput.value);
+                if (isValid && loginBtn) {
+                    loginBtn.disabled = false;
+                }
             }
         } else {
             console.log('No server found after all attempts');
@@ -167,9 +176,13 @@ async function handleLogin() {
     // Clear previous errors
     errorElement.textContent = '';
     
-    // Validate army number format
-    if (!armyNumber.match(/^[A-Z]{2}\d{6}[A-Z]?$/)) {
-        errorElement.textContent = 'Invalid Army Number format (Example: JC123456A)';
+    // Validate army number format (support both old and new formats)
+    const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
+    const newPattern = /^\d+[A-Z]$/;
+    const isValid = oldPattern.test(armyNumber) || newPattern.test(armyNumber);
+    
+    if (!isValid) {
+        errorElement.textContent = 'Invalid Army Number format (Example: JC123456A or 145699Z)';
         return;
     }
     

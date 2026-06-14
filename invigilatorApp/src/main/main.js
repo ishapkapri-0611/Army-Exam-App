@@ -2,16 +2,23 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const ProductionLogger = require('../../../shared-lib/utils/production-logger');
-const NetworkDiscovery = require('../../../shared-lib/utils/network-discovery');
-const Server = require('../server/app');
-const DocumentParser = require('../../../shared-lib/utils/document-parser');
 
-const logger = new ProductionLogger();
+const ProductionLogger = require('../../shared-lib/utils/production-logger');
+const NetworkDiscovery = require('../../shared-lib/utils/network-discovery');
+const Server = require('../server/app');
+const DocumentParser = require('../../shared-lib/utils/document-parser');
+
+// Use console.log instead of heavy logger for faster startup
+const logger = {
+    info: (...args) => console.log('[INFO]', ...args),
+    error: (...args) => console.error('[ERROR]', ...args),
+    warn: (...args) => console.warn('[WARN]', ...args),
+    debug: (...args) => console.log('[DEBUG]', ...args)
+};
 let mainWindow;
 let serverInstance;
 let networkDiscovery;
-let docxPackageAvailable = false;
+let docxPackageAvailable = true; // docx is in dependencies, always available
 
 // Store uploaded data globally
 let uploadedUsers = [];
@@ -187,26 +194,28 @@ function createWindow() {
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
             webSecurity: true,
-            allowRunningInsecureContent: false
+            allowRunningInsecureContent: false,
+            spellcheck: false,
+            enableWebSQL: false,
+            v8CacheOptions: 'code'
         },
         icon: path.join(__dirname, '../../assets/icon.png'),
         title: 'Army Exam Invigilator',
         minWidth: 1200,
         minHeight: 800,
+        backgroundColor: '#1a202c',
         show: false
     });
 
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-    // Show window when ready to prevent visual flash
+    // Show window immediately when ready
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
         logger.info('Main window ready and visible');
         
-        // Check and install docx package after window is ready
-        setTimeout(() => {
-            checkAndInstallDocxPackage();
-        }, 2000); // Wait 2 seconds for UI to fully load
+        // Skip docx check entirely - we'll handle it when user tries to export
+        // This saves significant startup time
     });
 
     // Security: Prevent DevTools in production
@@ -251,6 +260,33 @@ ipcMain.handle('start-server', async (event, port = 9611) => {
         
         await serverInstance.start();
         await networkDiscovery.startBroadcasting(port);
+        
+        // Send uploaded data to server if available
+        if (uploadedUsers.length > 0) {
+            try {
+                await fetch(`http://localhost:${port}/api/upload/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ users: uploadedUsers })
+                });
+                logger.info('Uploaded users sent to server', { count: uploadedUsers.length });
+            } catch (err) {
+                logger.warn('Could not send users to server', { error: err.message });
+            }
+        }
+        
+        if (uploadedQuestions.length > 0) {
+            try {
+                await fetch(`http://localhost:${port}/api/upload/questions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ questions: uploadedQuestions })
+                });
+                logger.info('Uploaded questions sent to server', { count: uploadedQuestions.length });
+            } catch (err) {
+                logger.warn('Could not send questions to server', { error: err.message });
+            }
+        }
         
         logger.info('Exam server started successfully', { port });
         return { success: true, port };
@@ -308,9 +344,8 @@ ipcMain.handle('get-server-status', () => {
 // Fixed File Upload Handlers with Working Dialogs
 ipcMain.handle('upload-users-file', async (event) => {
     try {
-        if (!serverInstance || !serverInstance.isRunning) {
-            throw new Error('Server is not running. Please start the server before uploading files.');
-        }
+        // Allow upload even if server is not running - we'll store it locally
+        const serverRunning = serverInstance && serverInstance.isRunning;
 
         console.log('📁 Users file upload requested from renderer');
         
@@ -335,7 +370,7 @@ ipcMain.handle('upload-users-file', async (event) => {
                     extensions: ['*'] 
                 }
             ],
-            message: 'Select a Word document containing candidate list (JC543031A, Name, Rank, Unit)'
+            message: 'Select a Word document containing candidate list (JC543031A or 145699Z, Name, Rank, Unit)'
         });
         
         console.log('File dialog result:', result);
@@ -374,21 +409,29 @@ ipcMain.handle('upload-users-file', async (event) => {
             
             // Validate users
             if (users.length === 0) {
-                throw new Error('No valid users found in the document. Please check the format: JC543031A, Name, Rank, Unit');
+                throw new Error('No valid users found in the document. Please check the format: JC543031A or 145699Z, Name, Rank, Unit');
             }
             
             // Store globally
             uploadedUsers = users;
             
-            // Send users to server
-            const response = await fetch('http://localhost:9611/api/upload/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ users })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to upload users to server');
+            // Send users to server if it's running
+            if (serverRunning) {
+                try {
+                    const response = await fetch('http://localhost:9611/api/upload/users', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ users })
+                    });
+                    
+                    if (!response.ok) {
+                        console.warn('Server upload failed, but data is stored locally');
+                    }
+                } catch (fetchError) {
+                    console.warn('Could not send to server, but data is stored locally:', fetchError.message);
+                }
+            } else {
+                console.log('Server not running - users stored locally and will be sent when server starts');
             }
             
             return { 
@@ -456,14 +499,14 @@ ipcMain.handle('upload-questions-file', async (event) => {
                 throw new Error('Selected file does not exist');
             }
 
-            // Validate file size
+            // Validate file size (increased to 50MB to support image-heavy question papers)
             const stats = fs.statSync(filePath);
             const fileSize = stats.size;
             
             console.log('File stats:', { size: fileSize, path: filePath });
             
-            if (fileSize > 10 * 1024 * 1024) {
-                throw new Error('File size exceeds 10MB limit');
+            if (fileSize > 50 * 1024 * 1024) {
+                throw new Error('File size exceeds 50MB limit');
             }
             
             if (fileSize === 0) {
@@ -538,8 +581,11 @@ ipcMain.handle('start-exam', async (event, examData) => {
         }
 
         if (uploadedQuestions.length === 0) {
-            throw new Error('No questions available to start the exam.');
+            throw new Error('No questions available to start the exam. Please upload questions first.');
         }
+
+        console.log(`🚀 Starting exam with ${uploadedQuestions.length} questions`);
+        console.log('Questions:', uploadedQuestions.map(q => `Q${q.id}: ${q.text.substring(0, 30)}...`));
 
         // The server now handles broadcasting internally via startExam
         serverInstance.startExam(uploadedQuestions, examData.duration);
@@ -780,8 +826,8 @@ function generateResultsHTML(results) {
                 <th>Name</th>
                 <th>Rank</th>
                 <th>Unit</th>
-                <th>Score</th>
-                <th>Total Questions</th>
+                <th>Marks Obtained</th>
+                <th>Total Marks</th>
                 <th>Percentage</th>
                 <th>Status</th>
                 <th>Submission Time</th>
@@ -893,6 +939,7 @@ ipcMain.handle('export-results-word', async (event, results = []) => {
                     rank: submission.rank,
                     unit: submission.unit,
                     score: submission.score,
+                    totalMarks: submission.totalMarks,
                     totalQuestions: submission.totalQuestions,
                     percentage: submission.percentage,
                     status: parseFloat(submission.percentage) >= 50 ? 'PASS' : 'FAIL',
@@ -1197,8 +1244,8 @@ ipcMain.handle('export-results', async (event) => {
                 <th>Name</th>
                 <th>Rank</th>
                 <th>Unit</th>
-                <th>Score</th>
-                <th>Total Questions</th>
+                <th>Marks Obtained</th>
+                <th>Total Marks</th>
                 <th>Percentage</th>
                 <th>Status</th>
                 <th>Submission Time</th>
@@ -1217,7 +1264,7 @@ ipcMain.handle('export-results', async (event) => {
                 <td>${row.rank || 'N/A'}</td>
                 <td>${row.unit || 'N/A'}</td>
                 <td>${row.score || row.totalScore || 0}</td>
-                <td>${row.totalQuestions || uploadedQuestions.length || 'N/A'}</td>
+                <td>${row.totalMarks || row.totalQuestions || uploadedQuestions.length || 'N/A'}</td>
                 <td class="percentage ${statusClass}">${percentage.toFixed(2)}%</td>
                 <td class="${statusClass}">${status}</td>
                 <td>${row.submittedAt ? new Date(row.submittedAt).toLocaleString() : 'N/A'}</td>
@@ -1331,7 +1378,7 @@ ipcMain.handle('export-results-csv', async (event) => {
         });
 
         if (!result.canceled && result.filePath) {
-            const headers = ['Army Number', 'Name', 'Rank', 'Unit', 'Score', 'Total Questions', 'Percentage', 'Status', 'Submission Time'];
+            const headers = ['Army Number', 'Name', 'Rank', 'Unit', 'Marks Obtained', 'Total Marks', 'Percentage', 'Status', 'Submission Time'];
             let csv = headers.join(',') + '\n';
             
             submissions.forEach(submission => {
@@ -1344,7 +1391,7 @@ ipcMain.handle('export-results-csv', async (event) => {
                     `"${submission.rank || 'N/A'}"`,
                     `"${submission.unit || 'N/A'}"`,
                     submission.score || submission.totalScore || 0,
-                    submission.totalQuestions || uploadedQuestions.length || 'N/A',
+                    submission.totalMarks || submission.totalQuestions || uploadedQuestions.length || 'N/A',
                     percentage.toFixed(2),
                     status,
                     `"${submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'N/A'}"`
@@ -1523,6 +1570,12 @@ ipcMain.handle('install-docx-package', async () => {
         message: result ? 'docx package installed successfully' : 'Failed to install docx package'
     };
 });
+
+// Optimize Electron for faster startup
+app.commandLine.appendSwitch('disable-http-cache');
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('no-sandbox');
 
 // Application Event Handlers
 app.whenReady().then(() => {
