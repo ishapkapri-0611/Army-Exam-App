@@ -90,7 +90,15 @@ const safeLogSecurityEvent = (event) => {
         'RENDERER_ERROR',
         'AUTO_SAVE',
         'ANSWER_SUBMISSION',
-        'SESSION_TIMEOUT'
+        'SESSION_TIMEOUT',
+        'LOGIN_SUCCESS',
+        'LOGIN_FAILED',
+        'EXAM_STARTED',
+        'EXAM_STOPPED',
+        'EXAM_SUBMITTED',
+        'WEBSOCKET_CONNECTED',
+        'WEBSOCKET_DISCONNECTED',
+        'WEBSOCKET_CONNECTION_ERROR'
     ];
 
     const validSeverities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'INFO'];

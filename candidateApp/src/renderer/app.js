@@ -61,20 +61,22 @@ class CandidateApp {
                 this.showMessage(`Welcome ${result.candidate.name}!`, 'success');
                 console.log('Exam data received:', result.examData);
                 
-                window.location.href = 'exam-page.html';// Store data with error handling
+                // Store data BEFORE navigating
                 try {
                     localStorage.setItem('serverInfo', JSON.stringify(this.serverInfo));
                     localStorage.setItem('examData', JSON.stringify(result.examData));
                     localStorage.setItem('candidateInfo', JSON.stringify(result.candidate));
                     console.log('Data stored in localStorage');
                     
-                    // Add delay to ensure data is stored before navigation
+                    // Navigate only after data is stored
                     setTimeout(() => {
                         window.location.replace('exam-page.html');
                     }, 100);
                 } catch (e) {
                     console.error('Storage error:', e);
                     this.showMessage('Error preparing exam data', 'error');
+                    this.enableLogin();
+                    return;
                 }
             } else {
                 this.showMessage(`Login failed: ${result.error}`, 'error');

@@ -33,17 +33,20 @@ class ProductionLogger {
     }
 
     writeToFile(logEntry) {
-        // This would write to a log file in production
-        const fs = require('fs');
-        const path = require('path');
-        
-        const logDir = path.join(__dirname, '../../logs');
-        if (!fs.existsSync(logDir)) {
-            fs.mkdirSync(logDir, { recursive: true });
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            
+            const logDir = path.join(__dirname, '../../logs');
+            if (!fs.existsSync(logDir)) {
+                fs.mkdirSync(logDir, { recursive: true });
+            }
+            
+            const logFile = path.join(logDir, `exam-app-${new Date().toISOString().split('T')[0]}.log`);
+            fs.appendFileSync(logFile, JSON.stringify(logEntry) + '\n');
+        } catch (error) {
+            console.error('Failed to write log to file:', error.message);
         }
-        
-        const logFile = path.join(logDir, `exam-app-${new Date().toISOString().split('T')[0]}.log`);
-        fs.appendFileSync(logFile, JSON.stringify(logEntry) + '\n');
     }
 
     info(message, data = null) {

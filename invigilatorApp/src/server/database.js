@@ -110,169 +110,157 @@ class Database {
 
     // Enhanced user import with proper error handling
     async importUsers(fileBuffer) {
-        return new Promise(async (resolve, reject) => {
+        console.log('Starting user import from file buffer');
+        
+        let users;
+        // Check if it's a Buffer (DOCX) or base64 string
+        if (Buffer.isBuffer(fileBuffer)) {
+            users = await this.parser.parseUsersDocument(fileBuffer);
+        } else {
+            // Handle base64 encoded content
+            const text = Buffer.from(fileBuffer, 'base64').toString();
+            users = await this.parser.parseUsersDocument(Buffer.from(text));
+        }
+        
+        if (!users || users.length === 0) {
+            throw new Error('No valid users found in the document');
+        }
+
+        console.log(`Parsed ${users.length} users, starting database insertion`);
+
+        const stmt = this.db.prepare(
+            "INSERT OR REPLACE INTO candidates (army_number, name, rank, unit) VALUES (?, ?, ?, ?)"
+        );
+
+        let insertedCount = 0;
+        let errorCount = 0;
+
+        for (const user of users) {
             try {
-                console.log('Starting user import from file buffer');
-                
-                let users;
-                // Check if it's a Buffer (DOCX) or base64 string
-                if (Buffer.isBuffer(fileBuffer)) {
-                    users = await this.parser.parseUsersDocument(fileBuffer);
-                } else {
-                    // Handle base64 encoded content
-                    const text = Buffer.from(fileBuffer, 'base64').toString();
-                    users = await this.parser.parseUsersDocument(Buffer.from(text));
-                }
-                
-                if (!users || users.length === 0) {
-                    throw new Error('No valid users found in the document');
-                }
-
-                console.log(`Parsed ${users.length} users, starting database insertion`);
-
-                const stmt = this.db.prepare(
-                    "INSERT OR REPLACE INTO candidates (army_number, name, rank, unit) VALUES (?, ?, ?, ?)"
-                );
-
-                let insertedCount = 0;
-                let errorCount = 0;
-
-                for (const user of users) {
-                    try {
-                        await new Promise((resolveStmt, rejectStmt) => {
-                            stmt.run([user.armyNumber, user.name, user.rank, user.unit], function(err) {
-                                if (err) {
-                                    console.error(`Error inserting user ${user.armyNumber}:`, err);
-                                    errorCount++;
-                                    resolveStmt(); // Continue with next user
-                                } else {
-                                    insertedCount++;
-                                    resolveStmt();
-                                }
-                            });
-                        });
-                    } catch (userError) {
-                        console.error(`Failed to insert user ${user.armyNumber}:`, userError);
-                        errorCount++;
-                    }
-                }
-
-                stmt.finalize((err) => {
-                    if (err) {
-                        console.error('Error finalizing statement:', err);
-                    }
-                    
-                    console.log(`User import completed: ${insertedCount} inserted, ${errorCount} errors`);
-                    
-                    if (insertedCount === 0) {
-                        reject(new Error('No users were imported successfully'));
-                    } else {
-                        resolve({
-                            success: true,
-                            imported: insertedCount,
-                            errors: errorCount,
-                            total: users.length,
-                            users: users.slice(0, insertedCount) // Return successfully imported users
-                        });
-                    }
+                await new Promise((resolveStmt, rejectStmt) => {
+                    stmt.run([user.armyNumber, user.name, user.rank, user.unit], function(err) {
+                        if (err) {
+                            console.error(`Error inserting user ${user.armyNumber}:`, err);
+                            errorCount++;
+                            resolveStmt(); // Continue with next user
+                        } else {
+                            insertedCount++;
+                            resolveStmt();
+                        }
+                    });
                 });
-
-            } catch (error) {
-                console.error('Error in importUsers:', error);
-                reject(error);
+            } catch (userError) {
+                console.error(`Failed to insert user ${user.armyNumber}:`, userError);
+                errorCount++;
             }
+        }
+
+        return new Promise((resolve, reject) => {
+            stmt.finalize((err) => {
+                if (err) {
+                    console.error('Error finalizing statement:', err);
+                }
+                
+                console.log(`User import completed: ${insertedCount} inserted, ${errorCount} errors`);
+                
+                if (insertedCount === 0) {
+                    reject(new Error('No users were imported successfully'));
+                } else {
+                    resolve({
+                        success: true,
+                        imported: insertedCount,
+                        errors: errorCount,
+                        total: users.length,
+                        users: users.slice(0, insertedCount)
+                    });
+                }
+            });
         });
     }
 
     // Enhanced questions import
     async importQuestions(fileBuffer) {
-        return new Promise(async (resolve, reject) => {
+        console.log('Starting questions import from file buffer');
+        
+        let questions;
+        if (Buffer.isBuffer(fileBuffer)) {
+            questions = await this.parser.parseQuestionsDocument(fileBuffer);
+        } else {
+            const text = Buffer.from(fileBuffer, 'base64').toString();
+            questions = await this.parser.parseQuestionsDocument(Buffer.from(text));
+        }
+
+        if (!questions || questions.length === 0) {
+            throw new Error('No valid questions found in the document');
+        }
+
+        console.log(`Parsed ${questions.length} questions, starting database insertion`);
+
+        const stmt = this.db.prepare(
+            `INSERT OR REPLACE INTO questions (question_id, question_text, option_a, option_b, option_c, option_d, correct_answer, marks, language) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+
+        let insertedCount = 0;
+        let errorCount = 0;
+
+        for (const q of questions) {
             try {
-                console.log('Starting questions import from file buffer');
-                
-                let questions;
-                if (Buffer.isBuffer(fileBuffer)) {
-                    questions = await this.parser.parseQuestionsDocument(fileBuffer);
-                } else {
-                    const text = Buffer.from(fileBuffer, 'base64').toString();
-                    questions = await this.parser.parseQuestionsDocument(Buffer.from(text));
-                }
+                const options = {
+                    A: q.options?.find(opt => opt.letter === 'A')?.text || '',
+                    B: q.options?.find(opt => opt.letter === 'B')?.text || '',
+                    C: q.options?.find(opt => opt.letter === 'C')?.text || '',
+                    D: q.options?.find(opt => opt.letter === 'D')?.text || ''
+                };
 
-                if (!questions || questions.length === 0) {
-                    throw new Error('No valid questions found in the document');
-                }
-
-                console.log(`Parsed ${questions.length} questions, starting database insertion`);
-
-                const stmt = this.db.prepare(
-                    `INSERT OR REPLACE INTO questions (question_id, question_text, option_a, option_b, option_c, option_d, correct_answer, marks, language) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-                );
-
-                let insertedCount = 0;
-                let errorCount = 0;
-
-                for (const q of questions) {
-                    try {
-                        const options = {
-                            A: q.options?.find(opt => opt.letter === 'A')?.text || '',
-                            B: q.options?.find(opt => opt.letter === 'B')?.text || '',
-                            C: q.options?.find(opt => opt.letter === 'C')?.text || '',
-                            D: q.options?.find(opt => opt.letter === 'D')?.text || ''
-                        };
-
-                        await new Promise((resolveStmt, rejectStmt) => {
-                            stmt.run([
-                                q.id || `Q${insertedCount + 1}`,
-                                q.text,
-                                options.A,
-                                options.B,
-                                options.C,
-                                options.D,
-                                q.correctAnswer,
-                                q.marks || 1,
-                                q.language || 'english'
-                            ], function(err) {
-                                if (err) {
-                                    console.error(`Error inserting question ${q.id}:`, err);
-                                    errorCount++;
-                                    resolveStmt();
-                                } else {
-                                    insertedCount++;
-                                    resolveStmt();
-                                }
-                            });
-                        });
-                    } catch (questionError) {
-                        console.error(`Failed to insert question:`, questionError);
-                        errorCount++;
-                    }
-                }
-
-                stmt.finalize((err) => {
-                    if (err) {
-                        console.error('Error finalizing statement:', err);
-                    }
-                    
-                    console.log(`Questions import completed: ${insertedCount} inserted, ${errorCount} errors`);
-                    
-                    if (insertedCount === 0) {
-                        reject(new Error('No questions were imported successfully'));
-                    } else {
-                        resolve({
-                            success: true,
-                            imported: insertedCount,
-                            errors: errorCount,
-                            total: questions.length,
-                            totalMarks: questions.reduce((sum, q) => sum + (q.marks || 1), 0)
-                        });
-                    }
+                await new Promise((resolveStmt, rejectStmt) => {
+                    stmt.run([
+                        q.id || `Q${insertedCount + 1}`,
+                        q.text,
+                        options.A,
+                        options.B,
+                        options.C,
+                        options.D,
+                        q.correctAnswer,
+                        q.marks || 1,
+                        q.language || 'english'
+                    ], function(err) {
+                        if (err) {
+                            console.error(`Error inserting question ${q.id}:`, err);
+                            errorCount++;
+                            resolveStmt();
+                        } else {
+                            insertedCount++;
+                            resolveStmt();
+                        }
+                    });
                 });
-
-            } catch (error) {
-                console.error('Error in importQuestions:', error);
-                reject(error);
+            } catch (questionError) {
+                console.error(`Failed to insert question:`, questionError);
+                errorCount++;
             }
+        }
+
+        return new Promise((resolve, reject) => {
+            stmt.finalize((err) => {
+                if (err) {
+                    console.error('Error finalizing statement:', err);
+                }
+                
+                console.log(`Questions import completed: ${insertedCount} inserted, ${errorCount} errors`);
+                
+                if (insertedCount === 0) {
+                    reject(new Error('No questions were imported successfully'));
+                } else {
+                    resolve({
+                        success: true,
+                        imported: insertedCount,
+                        errors: errorCount,
+                        total: questions.length,
+                        totalMarks: questions.reduce((sum, q) => sum + (q.marks || 1), 0)
+                    });
+                }
+            });
         });
     }
 

@@ -37,16 +37,23 @@ class ExamServer {
 
     loadDataFromDisk() {
         console.log('📂 Loading data from disk...');
+        const errors = [];
 
         // Load users
         const usersFilePath = path.join(this.dataDir, 'users.json');
         if (fs.existsSync(usersFilePath)) {
             try {
                 const usersData = fs.readFileSync(usersFilePath, 'utf8');
-                this.examData.users = JSON.parse(usersData);
+                const parsed = JSON.parse(usersData);
+                if (!Array.isArray(parsed)) {
+                    throw new Error('users.json does not contain an array');
+                }
+                this.examData.users = parsed;
                 console.log(`✅ Loaded ${this.examData.users.length} users from disk`);
             } catch (error) {
                 console.error('❌ Error loading users from disk:', error);
+                errors.push(`Users: ${error.message}`);
+                this.examData.users = [];
             }
         } else {
             console.log('📄 No users file found on disk');
@@ -58,7 +65,11 @@ class ExamServer {
         if (fs.existsSync(questionsFilePath)) {
             try {
                 const questionsData = fs.readFileSync(questionsFilePath, 'utf8');
-                this.examData.questions = JSON.parse(questionsData);
+                const parsed = JSON.parse(questionsData);
+                if (!Array.isArray(parsed)) {
+                    throw new Error('questions.json does not contain an array');
+                }
+                this.examData.questions = parsed;
                 const totalMarks = this.examData.questions.reduce((sum, q) => sum + (q.marks || 0), 0);
                 console.log(`✅ Loaded ${this.examData.questions.length} questions from disk (${totalMarks} total marks)`);
 
@@ -69,9 +80,15 @@ class ExamServer {
                 });
             } catch (error) {
                 console.error('❌ Error loading questions from disk:', error);
+                errors.push(`Questions: ${error.message}`);
+                this.examData.questions = [];
             }
         } else {
             console.log('📄 No questions file found on disk');
+        }
+
+        if (errors.length > 0) {
+            console.error('⚠️ Data loading completed with errors:', errors.join('; '));
         }
 
         // Clear any existing answers for fresh start
@@ -843,7 +860,7 @@ class ExamServer {
         } catch (error) {
             console.error('❌ Critical error in getSubmissions:', error);
             console.error('Error stack:', error.stack);
-            return [];
+            throw new Error(`Failed to retrieve submissions: ${error.message}`);
         }
     }
 
@@ -872,22 +889,23 @@ class ExamServer {
     startExam(questions, duration = 60) {
         console.log(`📋 startExam called with ${questions ? questions.length : 0} questions`);
         
-        if (questions && Array.isArray(questions) && questions.length > 0) {
-            this.examData.questions = questions;
-            console.log(`📝 Loaded ${questions.length} questions into examData`);
-            console.log('First question:', questions[0]);
-            
-            // Save questions to disk for persistence
-            try {
-                const questionsFilePath = path.join(this.dataDir, 'questions.json');
-                fs.writeFileSync(questionsFilePath, JSON.stringify(questions, null, 2));
-                console.log(`💾 Questions saved to disk: ${questionsFilePath}`);
-            } catch (err) {
-                console.error('❌ Failed to save questions to disk:', err);
-            }
-        } else {
-            console.error('⚠️ No questions provided to startExam or invalid format!');
-            console.error('Questions received:', questions);
+        if (!questions || !Array.isArray(questions) || questions.length === 0) {
+            const error = new Error('Cannot start exam: no valid questions provided');
+            console.error('❌', error.message, '- received:', questions);
+            throw error;
+        }
+
+        this.examData.questions = questions;
+        console.log(`📝 Loaded ${questions.length} questions into examData`);
+        console.log('First question:', questions[0]);
+        
+        // Save questions to disk for persistence
+        try {
+            const questionsFilePath = path.join(this.dataDir, 'questions.json');
+            fs.writeFileSync(questionsFilePath, JSON.stringify(questions, null, 2));
+            console.log(`💾 Questions saved to disk: ${questionsFilePath}`);
+        } catch (err) {
+            console.error('❌ Failed to save questions to disk:', err);
         }
         
         this.examData.startTime = new Date();
@@ -965,7 +983,7 @@ class ExamServer {
     }
 
     async stop() {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             if (!this.isRunning) {
                 resolve();
                 return;
@@ -974,13 +992,14 @@ class ExamServer {
             this.server.close((err) => {
                 if (err) {
                     console.error('Error stopping server:', err);
+                    reject(new Error(`Failed to stop server: ${err.message}`));
                 } else {
                     this.isRunning = false;
                     this.startTime = null;
                     this.connectedCandidates.clear();
                     console.log('✅ Exam server stopped successfully');
+                    resolve();
                 }
-                resolve();
             });
         });
     }
