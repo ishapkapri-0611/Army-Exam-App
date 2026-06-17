@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { io } = require('socket.io-client');
 const NetworkDiscovery = require('../../shared-lib/utils/network-discovery');
+const { isValidArmyNumber } = require('../../shared-lib/utils/validation');
 
 let mainWindow;
 let networkDiscovery;
@@ -253,12 +254,7 @@ ipcMain.handle('candidate-login', async (event, loginData) => {
             };
         }
 
-        // Validate army number format (support both old and new formats)
-        const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-        const newPattern = /^\d+[A-Z]$/;
-        const isValid = oldPattern.test(loginData.armyNumber) || newPattern.test(loginData.armyNumber);
-        
-        if (!isValid) {
+        if (!isValidArmyNumber(loginData.armyNumber)) {
             return { 
                 success: false, 
                 error: 'Invalid Army Number format. Expected format: JC543031A or 145699Z' 

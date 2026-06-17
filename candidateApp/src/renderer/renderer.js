@@ -46,12 +46,7 @@ function setupInputValidation() {
         armyNumberInput.addEventListener('input', (e) => {
             e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
             
-            // Enable/disable login button based on input
-            // Support both old format (JC543031A) and new format (145699Z)
-            const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-            const newPattern = /^\d+[A-Z]$/;
-            const isValid = oldPattern.test(e.target.value) || newPattern.test(e.target.value);
-            
+            const isValid = window.ArmyValidation.isValidArmyNumber(e.target.value);
             if (loginBtn) {
                 loginBtn.disabled = !isValid || !serverInfo;
             }
@@ -142,9 +137,7 @@ async function refreshServerSearch() {
             
             // Enable login button if army number is valid
             if (armyNumberInput) {
-                const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-                const newPattern = /^\d+[A-Z]$/;
-                const isValid = oldPattern.test(armyNumberInput.value) || newPattern.test(armyNumberInput.value);
+                const isValid = window.ArmyValidation.isValidArmyNumber(armyNumberInput.value);
                 if (isValid && loginBtn) {
                     loginBtn.disabled = false;
                 }
@@ -176,12 +169,7 @@ async function handleLogin() {
     // Clear previous errors
     errorElement.textContent = '';
     
-    // Validate army number format (support both old and new formats)
-    const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-    const newPattern = /^\d+[A-Z]$/;
-    const isValid = oldPattern.test(armyNumber) || newPattern.test(armyNumber);
-    
-    if (!isValid) {
+    if (!window.ArmyValidation.isValidArmyNumber(armyNumber)) {
         errorElement.textContent = 'Invalid Army Number format (Example: JC123456A or 145699Z)';
         return;
     }

@@ -1,3 +1,8 @@
+/**
+ * Lightweight renderer-side exam timer for the candidate app.
+ * See also: shared-lib/utils/exam-timer.js for the full-featured Node.js version
+ * used by the invigilator's monitoring system.
+ */
 class ExamTimer {
     constructor(duration, onTick, onComplete, isSeconds = false) {
         this.duration = isSeconds ? duration : duration * 60; // convert minutes to seconds if needed
