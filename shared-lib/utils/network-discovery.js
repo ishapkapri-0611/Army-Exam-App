@@ -50,14 +50,17 @@ class NetworkDiscovery {
 
     // Client side: Discover servers
     discoverServer(timeout = 10000) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const socket = dgram.createSocket('udp4');
             const servers = new Map();
+            let timedOut = false;
             
             socket.on('error', (err) => {
                 console.error('Discovery client error:', err);
-                socket.close();
-                resolve(null);
+                try { socket.close(); } catch (_) {}
+                if (!timedOut) {
+                    reject(new Error(`Server discovery failed: ${err.message}`));
+                }
             });
             
             socket.bind(this.discoveryPort, () => {
@@ -86,7 +89,8 @@ class NetworkDiscovery {
             
             // Return the first server found after timeout
             setTimeout(() => {
-                socket.close();
+                timedOut = true;
+                try { socket.close(); } catch (_) {}
                 
                 if (servers.size > 0) {
                     const latestServer = Array.from(servers.values())
@@ -106,7 +110,11 @@ class NetworkDiscovery {
             this.broadcastInterval = null;
         }
         if (this.socket) {
-            this.socket.close();
+            try {
+                this.socket.close();
+            } catch (error) {
+                console.error('Error closing discovery socket:', error.message);
+            }
             this.socket = null;
         }
         console.log('📡 Discovery broadcasting stopped');

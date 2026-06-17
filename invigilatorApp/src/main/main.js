@@ -1495,12 +1495,18 @@ ipcMain.handle('export-results-with-data', async (event, examData) => {
         });
 
         if (!result.canceled && result.filePath) {
-            const doc = await documentParser.generateResultsDocument(
-                examData.results, 
-                examData.examTitle || 'Army Examination Results'
-            );
-            
-            const buffer = await Packer.toBuffer(doc);
+            let buffer;
+            try {
+                const { Packer } = require('docx');
+                const doc = await documentParser.generateResultsDocument(
+                    examData.results, 
+                    examData.examTitle || 'Army Examination Results'
+                );
+                buffer = await Packer.toBuffer(doc);
+            } catch (docxError) {
+                logger.error('docx export failed, falling back to HTML', { error: docxError.message });
+                return await exportAsHTML(examData.results, result.filePath);
+            }
             fs.writeFileSync(result.filePath, buffer);
             
             logger.info('Results exported successfully', { 
@@ -1631,5 +1637,14 @@ if (!gotTheLock) {
         }
     });
 }
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception', { error: error.message, stack: error.stack });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection', { reason: String(reason) });
+});
 
 logger.info('Main process initialized successfully');
