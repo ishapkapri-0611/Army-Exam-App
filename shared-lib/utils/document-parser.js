@@ -1,4 +1,5 @@
 const mammoth = require('mammoth');
+const { isValidArmyNumber } = require('./validation');
 
 class DocumentParser {
     constructor() {
@@ -553,14 +554,9 @@ class DocumentParser {
         }
     }
 
-    // Validate Army Number format (supports both JC543031A and 145699Z patterns)
+    // Validate Army Number format — delegates to shared validation utility
     isValidArmyNumber(armyNumber) {
-        // Pattern 1: Old format - JC543031A (2 letters + 6 digits + optional letter)
-        const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-        // Pattern 2: New format - 145699Z (variable length digits + letter)
-        const newPattern = /^\d+[A-Z]$/;
-        
-        return oldPattern.test(armyNumber) || newPattern.test(armyNumber);
+        return isValidArmyNumber(armyNumber);
     }
 
     validateQuestions(questions) {

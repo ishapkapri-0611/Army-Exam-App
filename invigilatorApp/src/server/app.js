@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const { isValidArmyNumber } = require('../../shared-lib/utils/validation');
 
 class ExamServer {
     constructor(port = 9611) {
@@ -140,12 +141,7 @@ class ExamServer {
                         message: 'Invigilator login successful'
                     });
                 }
-                // Support both old format (JC543031A) and new format (145699Z)
-                const oldPattern = /^[A-Z]{2}\d{6}[A-Z]?$/;
-                const newPattern = /^\d+[A-Z]$/;
-                const isValidFormat = oldPattern.test(armyNumber) || newPattern.test(armyNumber);
-                
-                if (!isValidFormat) {
+                if (!isValidArmyNumber(armyNumber)) {
                     return res.json({
                         success: false,
                         error: 'Invalid Army Number format (expected format: JC543031A or 145699Z)'

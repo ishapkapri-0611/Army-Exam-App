@@ -330,40 +330,7 @@ class ProductionInvigilatorUI {
     }
 
     showNotification(message, type = 'info') {
-        // Create notification element
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            border-radius: 8px;
-            color: white;
-            z-index: 10000;
-            font-weight: bold;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease;
-            max-width: 400px;
-        `;
-        
-        const colors = {
-            success: 'linear-gradient(135deg, #27ae60, #2ecc71)',
-            error: 'linear-gradient(135deg, #e74c3c, #c0392b)',
-            warning: 'linear-gradient(135deg, #f39c12, #e67e22)',
-            info: 'linear-gradient(135deg, #3498db, #2980b9)'
-        };
-        
-        notification.style.background = colors[type] || colors.info;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // Remove after 5 seconds
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 5000);
+        window.ToastNotification.showToast(message, type, { duration: 5000, useGradient: true });
     }
 
     log(message, level = 'info') {

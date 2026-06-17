@@ -61,6 +61,13 @@
       "!**/{appveyor.yml,.travis.yml,circle.yml}",
       "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
     ],
+    "extraResources": [
+      {
+        "from": "../shared-lib",
+        "to": "shared-lib",
+        "filter": ["**/*.js"]
+      }
+    ],
     "extraFiles": [
       {
         "from": "../LICENSE.txt",

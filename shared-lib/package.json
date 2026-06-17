@@ -2,7 +2,7 @@
   "name": "army-exam-app",
   "version": "1.0.0",
   "description": "Army Exam Application - Secure Testing Platform",
-  "main": "invigilator-app/src/main/main.js",
+  "main": "index.js",
   "scripts": {
     "install-all": "npm install && cd shared-lib && npm install && cd ../invigilator-app && npm install && cd ../candidate-app && npm install",
     "dev-invigilator": "cd invigilator-app && npm run dev",

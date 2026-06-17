@@ -120,33 +120,7 @@ class CandidateApp {
     }
 
     showMessage(message, type = 'info') {
-        // Simple message display - will be enhanced in Phase 3
-        const colors = {
-            info: '#3498db',
-            success: '#27ae60',
-            error: '#e74c3c',
-            warning: '#f39c12'
-        };
-
-        const messageDiv = document.createElement('div');
-        messageDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${colors[type]};
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        `;
-        messageDiv.textContent = message;
-
-        document.body.appendChild(messageDiv);
-
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 4000);
+        window.ToastNotification.showToast(message, type);
     }
 
     setupEventListeners() {
