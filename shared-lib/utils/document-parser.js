@@ -705,7 +705,7 @@ class DocumentParser {
             };
 
             results.push(result);
-            console.log(`📋 ${candidateId}: ${obtainedMarks}/${totalPossibleMarks} = ${percentage.toFixed(2)}% (${status})`);
+            console.log(`📋 ${candidateId}: ${obtainedMarks}/${totalPossibleMarks} = ${percentage.toFixed(2)}% (${grade})`);
         });
 
         // Sort by percentage (descending)
