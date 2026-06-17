@@ -183,10 +183,13 @@ class ExamController {
         const questionTextEl = document.getElementById('questionText');
         let questionHtml = `<span class="q-number">${index + 1}.</span> ${this.escapeHtml(question.text)}`;
 
-        // Append embedded images if present
+        // Append embedded images if present (sanitize src to block javascript: URIs)
         if (question.images && question.images.length > 0) {
             question.images.forEach(src => {
-                questionHtml += `<div class="question-image-wrapper"><img src="${src}" class="question-image" alt="Question image" /></div>`;
+                const safeSrc = this.sanitizeImageSrc(src);
+                if (safeSrc) {
+                    questionHtml += `<div class="question-image-wrapper"><img src="${safeSrc}" class="question-image" alt="Question image" /></div>`;
+                }
             });
         }
         questionTextEl.innerHTML = questionHtml;
@@ -205,7 +208,10 @@ class ExamController {
             // Build option content — images in options
             let optionContent = `<span class="option-letter">${option.letter}.</span>`;
             if (option.image) {
-                optionContent += `<span class="option-text"><img src="${option.image}" class="option-image" alt="Option ${option.letter}" /></span>`;
+                const safeOptSrc = this.sanitizeImageSrc(option.image);
+                if (safeOptSrc) {
+                    optionContent += `<span class="option-text"><img src="${safeOptSrc}" class="option-image" alt="Option ${option.letter}" /></span>`;
+                }
             } else {
                 optionContent += `<span class="option-text">${this.escapeHtml(option.text)}</span>`;
             }
@@ -584,6 +590,16 @@ class ExamController {
         } catch (error) {
             console.error('Error stopping security monitoring:', error);
         }
+    }
+
+    sanitizeImageSrc(src) {
+        if (!src || typeof src !== 'string') return '';
+        const trimmed = src.trim();
+        if (/^(data:image\/|https?:\/\/|\.\/|\.\.\/|\/)/i.test(trimmed)) {
+            return this.escapeHtml(trimmed);
+        }
+        console.warn('Blocked suspicious image src:', trimmed);
+        return '';
     }
 
     // Safely escape plain text before putting into innerHTML

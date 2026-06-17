@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 
@@ -13,7 +14,15 @@ class ExamServer {
         this.server = http.createServer(this.app);
         this.io = socketIo(this.server, {
             cors: {
-                origin: "*",
+                origin: (origin, callback) => {
+                    // Allow connections from localhost and LAN IPs only
+                    if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/
+                        .test(origin)) {
+                        callback(null, true);
+                    } else {
+                        callback(new Error('CORS origin not allowed'));
+                    }
+                },
                 methods: ["GET", "POST"]
             }
         });
@@ -28,6 +37,16 @@ class ExamServer {
         };
         this.answersFilePath = path.join(__dirname, '../../results/all_answers.json');
         this.dataDir = path.join(__dirname, 'data');
+
+        // Login rate limiting state
+        this.loginAttempts = new Map();
+
+        // Admin password: use env var or fall back to a hashed default.
+        // In production, set ADMIN_PASSWORD_HASH to the sha256 hex digest of
+        // the desired password, e.g.:
+        //   echo -n 'YourStrongPassword' | sha256sum
+        this.adminPasswordHash = process.env.ADMIN_PASSWORD_HASH
+            || crypto.createHash('sha256').update('admin@0611').digest('hex');
 
         // Defer heavy initialization until server actually starts
         this.setupMiddleware();
@@ -133,11 +152,42 @@ class ExamServer {
             try {
                 const { armyNumber, password } = req.body;
                 console.log('Login attempt:', { armyNumber });
-                if (armyNumber === 'admin' && password === 'admin@0611') {
+
+                // --- rate-limit: max 5 attempts per IP per 15 min ---
+                const clientIp = req.ip || req.connection.remoteAddress;
+                const now = Date.now();
+                const windowMs = 15 * 60 * 1000;
+                if (!this.loginAttempts.has(clientIp)) {
+                    this.loginAttempts.set(clientIp, []);
+                }
+                const attempts = this.loginAttempts.get(clientIp)
+                    .filter(ts => now - ts < windowMs);
+                if (attempts.length >= 5) {
+                    return res.status(429).json({
+                        success: false,
+                        error: 'Too many login attempts. Please try again later.'
+                    });
+                }
+                attempts.push(now);
+                this.loginAttempts.set(clientIp, attempts);
+
+                // Admin login: compare hashed password instead of plaintext
+                if (armyNumber === 'admin') {
+                    const inputHash = crypto.createHash('sha256')
+                        .update(String(password || '')).digest('hex');
+                    if (crypto.timingSafeEqual(
+                        Buffer.from(inputHash, 'hex'),
+                        Buffer.from(this.adminPasswordHash, 'hex')
+                    )) {
+                        return res.json({
+                            success: true,
+                            role: 'invigilator',
+                            message: 'Invigilator login successful'
+                        });
+                    }
                     return res.json({
-                        success: true,
-                        role: 'invigilator',
-                        message: 'Invigilator login successful'
+                        success: false,
+                        error: 'Invalid credentials'
                     });
                 }
                 // Support both old format (JC543031A) and new format (145699Z)
@@ -154,6 +204,11 @@ class ExamServer {
                 console.log('Current users in examData:', this.examData.users);
                 const candidate = this.examData.users.find(user => user.armyNumber === armyNumber);
                 if (candidate) {
+                    // Strip correct answers before sending questions to candidates
+                    const safeQuestions = (this.examData.questions || []).map(q => {
+                        const { correctAnswer, ...rest } = q;
+                        return rest;
+                    });
                     return res.json({
                         success: true,
                         role: 'candidate',
@@ -164,7 +219,7 @@ class ExamServer {
                             unit: candidate.unit
                         },
                         examData: {
-                            questions: this.examData.questions,
+                            questions: safeQuestions,
                             duration: this.examData.duration,
                             startTime: this.examData.startTime,
                             serverTime: new Date(),
@@ -185,16 +240,14 @@ class ExamServer {
             }
         });
 
-        // Get server status
+        // Get server status (only expose non-sensitive counts to LAN)
         this.app.get('/api/status', (req, res) => {
             res.json({
                 isRunning: this.isRunning,
                 port: this.port,
                 connectedCandidates: this.connectedCandidates.size,
                 uptime: this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0,
-                examStarted: !!this.examData.startTime,
-                totalQuestions: this.examData.questions.length,
-                totalUsers: this.examData.users.length
+                examStarted: !!this.examData.startTime
             });
         });
 
@@ -376,10 +429,9 @@ class ExamServer {
             } catch (error) {
                 console.error('❌ Exam submission error:', error);
                 console.error('Error stack:', error.stack);
-                console.error('Request body:', JSON.stringify(req.body, null, 2));
                 res.status(500).json({ 
                     success: false, 
-                    error: 'Internal server error: ' + error.message 
+                    error: 'Internal server error' 
                 });
             }
         });
@@ -432,131 +484,125 @@ class ExamServer {
                 console.error('❌ Error getting candidate result:', error);
                 res.status(500).json({
                     success: false,
-                    error: error.message
+                    error: 'Internal server error'
                 });
             }
         });
 
-        // Debug endpoint to check questions in memory
-        this.app.get('/api/debug/questions', (req, res) => {
-            try {
-                res.json({
-                    success: true,
-                    questions: this.examData.questions,
-                    count: this.examData.questions.length
-                });
-            } catch (error) {
-                res.status(500).json({ success: false, error: error.message });
-            }
-        });
+        // Debug endpoints — only available in development mode
+        if (process.env.NODE_ENV === 'development') {
+            this.app.get('/api/debug/questions', (req, res) => {
+                try {
+                    res.json({
+                        success: true,
+                        questions: this.examData.questions,
+                        count: this.examData.questions.length
+                    });
+                } catch (error) {
+                    res.status(500).json({ success: false, error: 'Internal server error' });
+                }
+            });
 
-        // Debug endpoint to check answers in memory
-        this.app.get('/api/debug/answers', (req, res) => {
-            try {
-                const answersArray = Array.from(this.examData.answers.entries());
-                res.json({
-                    success: true,
-                    answers: answersArray,
-                    answersCount: answersArray.length,
-                    keys: Array.from(this.examData.answers.keys())
-                });
-            } catch (error) {
-                res.status(500).json({ success: false, error: error.message });
-            }
-        });
+            this.app.get('/api/debug/answers', (req, res) => {
+                try {
+                    const answersArray = Array.from(this.examData.answers.entries());
+                    res.json({
+                        success: true,
+                        answers: answersArray,
+                        answersCount: answersArray.length,
+                        keys: Array.from(this.examData.answers.keys())
+                    });
+                } catch (error) {
+                    res.status(500).json({ success: false, error: 'Internal server error' });
+                }
+            });
 
-        // Debug endpoint to see raw answer data
-        this.app.get('/api/debug/raw-answers/:armyNumber', (req, res) => {
-            try {
-                const { armyNumber } = req.params;
-                const candidateAnswers = Array.from(this.examData.answers.values())
-                    .filter(answer => answer.candidateId === armyNumber);
-                
-                const questionsData = this.examData.questions.map(q => ({
-                    id: q.id,
-                    correctAnswer: q.correctAnswer,
-                    marks: q.marks,
-                    text: q.text ? q.text.substring(0, 50) + '...' : 'N/A'
-                }));
-                
-                res.json({
-                    success: true,
-                    candidateAnswers: candidateAnswers,
-                    questions: questionsData,
-                    answersCount: candidateAnswers.length,
-                    questionsCount: this.examData.questions.length
-                });
-            } catch (error) {
-                res.status(500).json({ success: false, error: error.message });
-            }
-        });
+            this.app.get('/api/debug/raw-answers/:armyNumber', (req, res) => {
+                try {
+                    const { armyNumber } = req.params;
+                    const candidateAnswers = Array.from(this.examData.answers.values())
+                        .filter(answer => answer.candidateId === armyNumber);
 
-        // Debug endpoint to check calculation details
-        this.app.get('/api/debug/calculation', (req, res) => {
-            try {
-                const submissions = new Map();
+                    const questionsData = this.examData.questions.map(q => ({
+                        id: q.id,
+                        correctAnswer: q.correctAnswer,
+                        marks: q.marks,
+                        text: q.text ? q.text.substring(0, 50) + '...' : 'N/A'
+                    }));
 
-                // Process all answers
-                for (const [key, value] of this.examData.answers.entries()) {
-                    const { candidateId, questionId, selectedAnswer } = value;
+                    res.json({
+                        success: true,
+                        candidateAnswers: candidateAnswers,
+                        questions: questionsData,
+                        answersCount: candidateAnswers.length,
+                        questionsCount: this.examData.questions.length
+                    });
+                } catch (error) {
+                    res.status(500).json({ success: false, error: 'Internal server error' });
+                }
+            });
 
-                    if (!submissions.has(candidateId)) {
-                        const candidate = this.examData.users.find(user => user.armyNumber === candidateId);
-                        submissions.set(candidateId, {
-                            candidateId: candidateId,
-                            name: candidate ? candidate.name : 'Unknown',
-                            answers: [],
-                            calculationSteps: []
+            this.app.get('/api/debug/calculation', (req, res) => {
+                try {
+                    const submissions = new Map();
+
+                    for (const [key, value] of this.examData.answers.entries()) {
+                        const { candidateId, questionId, selectedAnswer } = value;
+
+                        if (!submissions.has(candidateId)) {
+                            const candidate = this.examData.users.find(user => user.armyNumber === candidateId);
+                            submissions.set(candidateId, {
+                                candidateId: candidateId,
+                                name: candidate ? candidate.name : 'Unknown',
+                                answers: [],
+                                calculationSteps: []
+                            });
+                        }
+
+                        submissions.get(candidateId).answers.push({
+                            questionId: questionId,
+                            selectedAnswer: selectedAnswer
                         });
                     }
 
-                    submissions.get(candidateId).answers.push({
-                        questionId: questionId,
-                        selectedAnswer: selectedAnswer
-                    });
-                }
+                    const submissionsArray = Array.from(submissions.values());
+                    submissionsArray.forEach(submission => {
+                        let correctAnswers = 0;
 
-                // Calculate with detailed steps
-                const submissionsArray = Array.from(submissions.values());
-                submissionsArray.forEach(submission => {
-                    let correctAnswers = 0;
+                        submission.answers.forEach(answer => {
+                            const mappedQuestionId = answer.questionId + 1;
+                            const question = this.examData.questions.find(q => q.id === mappedQuestionId);
+                            const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
 
-                    submission.answers.forEach(answer => {
-                        // Always map 0-based answer IDs to 1-based server question IDs
-                        const mappedQuestionId = answer.questionId + 1;
-                        const question = this.examData.questions.find(q => q.id === mappedQuestionId);
+                            submission.calculationSteps.push({
+                                originalQuestionId: answer.questionId,
+                                mappedQuestionId: mappedQuestionId,
+                                selectedAnswer: answer.selectedAnswer,
+                                correctAnswer: question ? question.correctAnswer : 'NOT FOUND',
+                                questionFound: !!question,
+                                isCorrect: isCorrect
+                            });
 
-                        const isCorrect = question && question.correctAnswer === answer.selectedAnswer;
-
-                        submission.calculationSteps.push({
-                            originalQuestionId: answer.questionId,
-                            mappedQuestionId: mappedQuestionId,
-                            selectedAnswer: answer.selectedAnswer,
-                            correctAnswer: question ? question.correctAnswer : 'NOT FOUND',
-                            questionFound: !!question,
-                            isCorrect: isCorrect
+                            if (isCorrect) {
+                                correctAnswers++;
+                            }
                         });
 
-                        if (isCorrect) {
-                            correctAnswers++;
-                        }
+                        submission.score = correctAnswers;
+                        submission.totalQuestions = this.examData.questions.length;
                     });
 
-                    submission.score = correctAnswers;
-                    submission.totalQuestions = this.examData.questions.length;
-                });
+                    res.json({
+                        success: true,
+                        submissions: submissionsArray,
+                        serverQuestions: this.examData.questions.map(q => ({ id: q.id, correctAnswer: q.correctAnswer }))
+                    });
+                } catch (error) {
+                    res.status(500).json({ success: false, error: 'Internal server error' });
+                }
+            });
+        } // end development-only debug endpoints
 
-                res.json({
-                    success: true,
-                    submissions: submissionsArray,
-                    serverQuestions: this.examData.questions.map(q => ({ id: q.id, correctAnswer: q.correctAnswer }))
-                });
-            } catch (error) {
-                res.status(500).json({ success: false, error: error.message });
-            }
-        });
-
-        // Export results to CSV
         this.app.get('/api/export-results', (req, res) => {
             try {
                 const submissions = this.getSubmissions();
@@ -619,16 +665,19 @@ class ExamServer {
 
                 // Send exam data to candidate if exam has started
                 if (this.examData.startTime) {
+                    const candidateSafeQuestions = (this.examData.questions || []).map(q => {
+                        const { correctAnswer, ...rest } = q;
+                        return rest;
+                    });
                     socket.emit('exam-data', {
-                        questions: this.examData.questions,
+                        questions: candidateSafeQuestions,
                         duration: this.examData.duration,
                         startTime: this.examData.startTime,
                         serverTime: new Date()
                     });
 
-                    // Also send exam-start event for consistency
                     socket.emit('exam-start', {
-                        questions: this.examData.questions,
+                        questions: candidateSafeQuestions,
                         duration: this.examData.duration,
                         startTime: this.examData.startTime,
                         serverTime: new Date()
@@ -847,21 +896,29 @@ class ExamServer {
         }
     }
 
+    sanitizeCsvValue(value) {
+        const str = String(value);
+        if (/^[=+\-@\t\r]/.test(str)) {
+            return "'" + str;
+        }
+        return str;
+    }
+
     generateCSV(submissions) {
         const headers = ['Army Number', 'Name', 'Rank', 'Unit', 'Marks Obtained', 'Total Marks', 'Total Questions', 'Percentage', 'Submission Time'];
         let csv = headers.join(',') + '\n';
 
         submissions.forEach(submission => {
             const row = [
-                `"${submission.armyNumber}"`,
-                `"${submission.name}"`,
-                `"${submission.rank}"`,
-                `"${submission.unit}"`,
+                `"${this.sanitizeCsvValue(submission.armyNumber)}"`,
+                `"${this.sanitizeCsvValue(submission.name)}"`,
+                `"${this.sanitizeCsvValue(submission.rank)}"`,
+                `"${this.sanitizeCsvValue(submission.unit)}"`,
                 submission.score,
                 submission.totalMarks || submission.totalQuestions,
                 submission.totalQuestions,
                 submission.percentage,
-                `"${new Date(submission.submittedAt).toLocaleString()}"`
+                `"${this.sanitizeCsvValue(new Date(submission.submittedAt).toLocaleString())}"`
             ];
             csv += row.join(',') + '\n';
         });
@@ -895,8 +952,14 @@ class ExamServer {
 
         console.log(`🚀 Exam started! Duration: ${duration} minutes, Questions in memory: ${this.examData.questions.length}`);
 
+        // Strip correct answers before sending to candidates
+        const safeQuestions = (this.examData.questions || []).map(q => {
+            const { correctAnswer, ...rest } = q;
+            return rest;
+        });
+
         const examPayload = {
-            questions: this.examData.questions,
+            questions: safeQuestions,
             startTime: this.examData.startTime,
             duration: duration
         };
@@ -1129,8 +1192,7 @@ class ExamServer {
                 status: 'ERROR',
                 submittedAt: candidateSubmission.submittedAt || new Date(),
                 timeTaken: candidateSubmission.timeTaken || 'N/A',
-                message: 'Error calculating result. Please contact the invigilator.',
-                error: error.message
+                message: 'Error calculating result. Please contact the invigilator.'
             };
         }
     }
